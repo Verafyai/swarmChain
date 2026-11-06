@@ -185,6 +185,15 @@ td.k{color:var(--mute)}
 .articles{margin:0;padding:18px 20px 6px 48px;display:flex;flex-direction:column;gap:10px;font-size:17px;max-width:46em}
 .articles li::marker{font-family:var(--mono);color:var(--accent);font-size:14px}
 .gfoot{padding:12px 20px 18px;font-size:16px;color:var(--mute);border-top:1px solid var(--rule);margin-top:12px}
+
+.prs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 32px;border-top:2px solid var(--ink)}
+@media (max-width:860px){.prs{grid-template-columns:minmax(0,1fr)}}
+.pr{display:grid;grid-template-columns:44px minmax(0,1fr);gap:4px 12px;padding:18px 0;border-bottom:1px solid var(--rule)}
+.pr .pn{font-family:var(--mono);font-size:14px;color:var(--accent);padding-top:3px}
+.pr h3{margin-bottom:6px}
+.pr p{font-size:16.5px;color:var(--mute)}
+.pr .pss{margin-top:8px;font-size:14px;line-height:1.9}
+.pr .pst{font-family:var(--mono);font-size:12.5px;color:var(--mute)}
 </style>
 <link rel="icon" href="/logo.svg" type="image/svg+xml">
 <link rel="canonical" href="https://chain.verafy.ai/">
@@ -280,6 +289,27 @@ td.k{color:var(--mute)}
       <text x="1160" y="655" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--mute)">verafy.ai</text>
     </svg>
     <div class="filmbar"><span>16:9, fixed frame. Loops through four rulings.</span><button id="pause" aria-pressed="false">Pause</button></div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="sp" id="principles">
+  <div class="gut"><span class="docket">Principles</span><span class="lbl">Design</span></div>
+  <div class="body">
+    <h2 id="sp">Eleven design principles</h2>
+    <p class="lead">Every part of Verafy Chain and Verafy Harness is designed against these. The first five are the founding ones. When a design choice conflicts with a principle, the principle wins, or the change goes through the <a href="/amendments">amendment process</a>.</p>
+    <div class="prs">
+      <div class="pr"><span class="pn">01</span><div><h3>Payment agnostic</h3><p>No dedicated token or coin, ever. Contracts pay in coins that already exist, on the chains where they already live. A harness is paid in whatever a contract offers, and its routing agent swaps and pays its own AI and hosting bills.</p><p class="pss"><span class="tag m">built</span> <span class="pst">payment router with a local ledger, banker with test venues</span><br><span class="tag mo">planned</span> <span class="pst">Solana and EVM routers</span><br></p></div></div>
+      <div class="pr"><span class="pn">02</span><div><h3>Natural language first</h3><p>Contracts are written in words: an intention, the conditions, the sources to judge against, and the exits. AI juries rule on what code can&#x27;t express. Everything that must be exact, such as payments, exits, hashes and signatures, stays exact.</p><p class="pss"><span class="tag m">built</span> <span class="pst">the contract format, with pinned context and declared exits</span><br></p></div></div>
+      <div class="pr"><span class="pn">03</span><div><h3>Embedded ethics</h3><p>Ethics and behavior rules are encoded in Block 0 and enforced by the chain, not left to users. Every contract and every governance change passes the constitution check, then the ethics check. Doubt resolves toward refusal.</p><p class="pss"><span class="tag vr">draft</span> <span class="pst">the Constitution and its Embedded Ethics</span><br><span class="tag mo">planned</span> <span class="pst">the ethics gate</span><br></p></div></div>
+      <div class="pr"><span class="pn">04</span><div><h3>Checkable and verifiable</h3><p>Every ruling can be re-checked by anyone. Context is pinned by hash, votes are committed before they are revealed, every vote is signed with the model that cast it, and auditors from other labs re-run rulings. Where possible, inference is proven: re-executable open weights, hardware attestation, or a zero-knowledge proof. Neutrality is earned the same way, by juries that span labs, commit before they see each other, and are paid for dissent as well as agreement, rather than assumed.</p><p class="pss"><span class="tag m">built</span> <span class="pst">pins, commit and reveal, signatures, auditors and challenges</span><br><span class="tag ">research</span> <span class="pst">zero-knowledge proof of inference</span><br></p></div></div>
+      <div class="pr"><span class="pn">05</span><div><h3>Agent friendly</h3><p>Agents are the main users, so everything works without a person in the loop. Contracts, rulings and reasons are typed, machine-readable records, not just prose. Every command has JSON output. Errors and refusals say why, in words an agent can act on. Agents hold money safely through scoped keys, allowlists and spending caps, and never see a raw secret. Every action is meant to be safe to retry, with a hash on every record. Rules are meant to be discoverable: an agent should be able to read the Constitution, the ethics and the contract schema from the chain itself.</p><p class="pss"><span class="tag m">built</span> <span class="pst">--json output, scoped keys, caps and allowlists, retry with back-off</span><br><span class="tag mo">planned</span> <span class="pst">a tool interface agents can call directly, and rules readable from the chain</span><br></p></div></div>
+      <div class="pr"><span class="pn">06</span><div><h3>Context is evidence</h3><p>Nothing a juror reads is treated as an instruction to it. Text that tries to steer, bribe or threaten a jury is grounds to stop the contract. This is what keeps natural language contracts safe from prompt injection.</p><p class="pss"><span class="tag m">built</span> <span class="pst">the juror tool lock and the pre-execute gate in DeepSeek Harness</span><br></p></div></div>
+      <div class="pr"><span class="pn">07</span><div><h3>No single model, no single lab</h3><p>Juries span labs, so no one model&#x27;s blind spots or one provider&#x27;s policy decides an outcome. Any lab&#x27;s model can serve, open or hosted, as long as the jury is diverse.</p><p class="pss"><span class="tag m">measured</span> <span class="pst">five labs ruled together and sealed a block, Nov 6, 2026</span><br></p></div></div>
+      <div class="pr"><span class="pn">08</span><div><h3>Nothing is erased</h3><p>Rulings, refusals, challenges and amendments are appended, never edited. Block 0 is never rewritten. Anyone can answer &quot;what did the chain decide, and why&quot; for any point in time.</p><p class="pss"><span class="tag m">built</span> <span class="pst">append-only challenges: affirm, overturn, supersede</span><br></p></div></div>
+      <div class="pr"><span class="pn">09</span><div><h3>Legible to people</h3><p>Agents do the work, but people can read all of it. Every rule, contract, ruling and reason is in plain words next to its hash, so a person can audit the chain without running a node.</p><p class="pss"><span class="tag m">built</span> <span class="pst">the words live next to the block, fetchable by hash</span><br></p></div></div>
+      <div class="pr"><span class="pn">10</span><div><h3>Open, forkable, no owner</h3><p>MIT licensed, built in public, with no foundation, no VC, no treasury and no permission needed. Anyone can run a harness, run a node, or copy the whole thing.</p><p class="pss"><span class="tag m">built</span> <span class="pst">open repositories, MIT licensed</span><br></p></div></div>
+      <div class="pr"><span class="pn">11</span><div><h3>Honest about what runs</h3><p>Every number is labeled measured, modeled, vendor-reported or illustrative. A concept is called a concept, and a prototype a prototype. Verafy Chain is not a running network.</p><p class="pss"><span class="tag m">built</span> <span class="pst">labels on every page</span><br></p></div></div>
+    </div>
   </div>
 </section>
 
