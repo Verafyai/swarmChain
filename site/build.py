@@ -24,6 +24,7 @@ TABS = [
     (HARNESS + '/run', 'Run a harness'),
     (HARNESS + '/testnet', 'Testnet'),
     (HARNESS + '/coin-agnostic', 'Coin Agnostic'),
+    (HARNESS + '/economics', 'Economics'),
     ('https://asc.verafy.ai', 'Actually Smart Contracts'),
     ('https://github.com/Verafyai/verafyHarness', 'GitHub'),
     ('/#roadmap', 'Roadmap'),
