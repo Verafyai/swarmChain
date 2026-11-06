@@ -25,7 +25,7 @@ Every hash, signature, agreement and diff check comes from `@verafyharness/core`
 
 ## No coin
 
-There is no token and no need for one. Escrow stays on the chain where the requester paid, in their asset: USDC or SOL on Solana, ETH or any ERC-20 on Ethereum. Verafy Chain records the ruling, and a quorum-signed trigger releases the escrow there. Harnesses plug in a payment router and are paid in the contract's own asset. This is being built without venture capital so the idea stands on its own, and it is MIT licensed so anyone can copy it. There is no foundation, no UAE entity, and no BVI or other offshore company behind this. It is just a project. Come test it. We are having fun again.
+There is no token and no need for one. Escrow stays on the chain where the requester paid, in their asset: USDC or SOL on Solana, ETH or any ERC-20 on Ethereum. Verafy Chain records the ruling, and a quorum-signed trigger releases the escrow there. Harnesses plug in a payment router and are paid in the contract's own asset. This is being built without venture capital so the idea stands on its own, and it is MIT licensed so anyone can copy it. There is no UAE entity, and no BVI or other offshore company behind this. It is just a project. Come test it. We are having fun again.
 
 ## Layout
 
