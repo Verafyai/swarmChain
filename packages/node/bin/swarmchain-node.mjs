@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Start one Swarm Chain node.
+ * Start one Verafy Chain node.
  *
  *   swarmchain-node --id node-1 --port 7101 --peers http://127.0.0.1:7102,http://127.0.0.1:7103 [--db file.db]
  *

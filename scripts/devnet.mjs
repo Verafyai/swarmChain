@@ -4,7 +4,7 @@
  *
  *   npm run devnet
  *
- * Starts three Swarm Chain nodes (ports 7101 to 7103) and five harness
+ * Starts three Verafy Chain nodes (ports 7101 to 7103) and five harness
  * processes from verafyHarness (ports 7201 to 7205, one per lab), submits all
  * five verafyHarness example contracts, waits for five blocks, and prints each
  * block's hash as every node holds it. Exits 0 only if all three nodes hold the
@@ -60,7 +60,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 async function main() {
   const t0 = performance.now()
-  console.log('Swarm Chain devnet: 3 nodes, 5 harnesses, scripted answers (no model key, no model calls)\n')
+  console.log('Verafy Chain devnet: 3 nodes, 5 harnesses, scripted answers (no model key, no model calls)\n')
   const peers = NODES.map(n => n.url).join(',')
   await Promise.all(NODES.map(n => start(n.id, 'packages/node/bin/swarmchain-node.mjs', ['--id', n.id, '--port', String(n.port), '--peers', peers])))
   for (const n of NODES) console.log(`node     ${n.id}  ${n.url}`)

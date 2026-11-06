@@ -1,5 +1,7 @@
 // The Solana bridge stub: a trigger leaves the chain only with a quorum of
-// counted jurors' signatures over core's `swarm.trigger/0` message.
+// counted jurors' signatures over core's trigger message: `swarm.trigger/0` at the
+// pinned core, `verafy.trigger/1` once core moves. The chain never checks the kind
+// itself; core's `verifyTrigger` does.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { challengeContract, rulingId } from '#core'
@@ -18,9 +20,9 @@ async function settled(options) {
 
 test('a call trigger is verified by a quorum signature of counted jurors', async () => {
   const { block, ruling, msg, sign, store } = await settled()
-  assert.equal(TRIGGER_KIND, 'swarm.trigger/0')
+  assert.ok(['swarm.trigger/0', 'verafy.trigger/1'].includes(TRIGGER_KIND), `unexpected trigger kind ${TRIGGER_KIND}`)
   assert.deepEqual(ruling.triggers, [{ type: 'call', chain: 'solana', target: 'market.settle', args: ['NO'] }])
-  assert.deepEqual(msg, { kind: 'swarm.trigger/0', block: block.hash, ruling: rulingId(ruling), ascHash: ruling.ascHash, trigger: ruling.triggers[0] })
+  assert.deepEqual(msg, { kind: TRIGGER_KIND, block: block.hash, ruling: rulingId(ruling), ascHash: ruling.ascHash, trigger: ruling.triggers[0] })
   const counted = ruling.votes.map(v => v.harness)
   const quorum = example('market-resolution').payment.jury.quorum
   const ok = checkTrigger(store, msg, sign(counted.slice(0, quorum)))
@@ -33,7 +35,7 @@ test('a call trigger is verified by a quorum signature of counted jurors', async
   assert.equal(checkTrigger(store, msg, twice).ok, false, 'a repeated signer counts once')
   const otherBlock = { ...msg, block: '0'.repeat(64) }
   assert.equal(checkTrigger(store, otherBlock, sign(counted)).ok, false)
-  // The bridge's old temporary kind is refused: core's swarm.trigger/0 is the only format.
+  // The bridge's old temporary kind is refused: only core's trigger kinds verify.
   const oldKind = { ...msg, kind: 'swarmchain.trigger/0' }
   assert.equal(checkTrigger(store, oldKind, sign(counted)).ok, false)
   assert.throws(() => relay(), /milestone 5 stub/)

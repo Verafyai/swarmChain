@@ -1,16 +1,16 @@
 <p align="center">
-  <img src="docs/assets/banner.png" alt="Swarm Chain: contracts written in words, validators with judgment, no token" width="100%">
+  <img src="docs/assets/banner.png" alt="Verafy Chain: contracts written in words, validators with judgment, no token" width="100%">
 </p>
 
-# Swarm Chain
+# Verafy Chain
 
 **A blockchain that runs on words, intentions, ideas and questions.** Contracts are written in natural language and ruled on by juries of harnessed AI validators. There is no token.
 
-> **Status.** In progress, not a running network, nothing audited. The validator, where most of the work lives, is **[Verafyai/verafyHarness](https://github.com/Verafyai/verafyHarness)**. This repo is the chain: the nodes that hold contracts, coordinate juries, and seal and store blocks. The concept is at **[swarmchain.verafy.ai](https://swarmchain.verafy.ai)**.
+> **Status.** In progress, not a running network, nothing audited. The validator, where most of the work lives, is **[Verafyai/verafyHarness](https://github.com/Verafyai/verafyHarness)**. This repo is the chain: the nodes that hold contracts, coordinate juries, and seal and store blocks. The concept is at **[chain.verafy.ai](https://chain.verafy.ai)**.
 
 ## What this repo is
 
-| | Verafy Harness | Swarm Chain (this repo) |
+| | Verafy Harness | Verafy Chain (this repo) |
 |---|---|---|
 | Role | The validator: an AI model wrapped in a harness | The bookkeeper: nodes |
 | Runs a model | Yes | Never |
@@ -25,7 +25,7 @@ Every hash, signature, agreement and diff check comes from `@verafyharness/core`
 
 ## No coin
 
-There is no token and no need for one. Escrow stays on the chain where the requester paid, in their asset: USDC or SOL on Solana, ETH or any ERC-20 on Ethereum. Swarm Chain records the ruling, and a quorum-signed trigger releases the escrow there. Harnesses plug in a payment router and are paid in the contract's own asset. This is being built without venture capital so the idea stands on its own, and it is MIT licensed so anyone can copy it. There is no foundation, no UAE entity, and no BVI or other offshore company behind this. It is just a project. Come test it. We are having fun again.
+There is no token and no need for one. Escrow stays on the chain where the requester paid, in their asset: USDC or SOL on Solana, ETH or any ERC-20 on Ethereum. Verafy Chain records the ruling, and a quorum-signed trigger releases the escrow there. Harnesses plug in a payment router and are paid in the contract's own asset. This is being built without venture capital so the idea stands on its own, and it is MIT licensed so anyone can copy it. There is no foundation, no UAE entity, and no BVI or other offshore company behind this. It is just a project. Come test it. We are having fun again.
 
 ## Layout
 
@@ -41,7 +41,7 @@ packages/gossip/          commit, reveal, contract and block messages over HTTP
 packages/storage/         availability layer: context by sha256 through the challenge window
 packages/api/             the read API
 packages/explorer/        a static page that reads the API
-packages/bridge-solana/   milestone 5 stub: checks core's swarm.trigger/0 quorum against the chain
+packages/bridge-solana/   milestone 5 stub: checks core's trigger quorum against the chain
 scripts/devnet.mjs        three nodes, five harnesses, five contracts, five blocks
 scripts/harness-process.mjs  a core Harness served over HTTP; stand-in for the verafyHarness daemon
 test/                     node:test suite
@@ -56,8 +56,8 @@ Three local nodes and five harness processes from verafyHarness seal blocks toge
 Needs Node 22.13 or later (for `node:sqlite`). No other dependencies.
 
 ```sh
-git clone https://github.com/Verafyai/swarmchain.git
-cd swarmchain
+git clone https://github.com/Verafyai/verafyChain.git
+cd verafyChain
 npm install       # fetches @verafyharness/core from GitHub at a pinned commit
 npm test          # node:test suite, including the devnet check
 npm run devnet    # three nodes, five harnesses, five example contracts, five blocks
@@ -65,7 +65,7 @@ npm run devnet    # three nodes, five harnesses, five example contracts, five bl
 
 `npm run devnet` starts three nodes (ports 7101 to 7103) and five harness processes (ports 7201 to 7205), submits the five verafyHarness example contracts, and prints every block's hash as each node holds it. It exits 0 only when all three nodes hold the same five blocks. Add `--keep` to leave it running and open the explorer at http://127.0.0.1:7101/, or `--verbose` to see every event.
 
-**The harnesses use the scripted provider.** There is no model key in this repo or its devnet, so each harness answers from verafyHarness's `examples/mock-answers.json` through core's `mockProvider`. No model is called. Swapping in live models is a verafyHarness concern (`--live`, `SWARM_API_KEY`), not a chain one.
+**The harnesses use the scripted provider.** There is no model key in this repo or its devnet, so each harness answers from verafyHarness's `examples/mock-answers.json` through core's `mockProvider`. No model is called. Swapping in live models is a verafyHarness concern (`--live`, `SWARM_API_KEY`, which the verafyHarness rename makes `VERAFY_API_KEY` with the old name as a fallback), not a chain one.
 
 #### How @verafyharness/core is consumed
 
@@ -158,11 +158,11 @@ Nothing here has run as a network. The devnet prints its own wall time, labeled 
 
 ## Read more
 
-- [swarmchain.verafy.ai](https://swarmchain.verafy.ai), the concept, with both animations
+- [chain.verafy.ai](https://chain.verafy.ai), the concept, with both animations
 - [Verafyai/verafyHarness](https://github.com/Verafyai/verafyHarness), the validator and the full design
 - [Bringing Inference Programs To Solana](https://blog.verafy.ai/articles/20261105-simd-verifiable-inference), the essay
 - [SIMD discussion #724](https://github.com/solana-foundation/solana-improvement-documents/discussions/724)
 
 ## License
 
-MIT. Swarm Chain is a Verafy research project.
+MIT. Verafy Chain is a Verafy research project.

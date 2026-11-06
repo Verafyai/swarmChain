@@ -3,7 +3,7 @@
  * harnesses (core's `Harness` with the scripted provider), joined by a local
  * gossip bus. Nothing here calls a model.
  */
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { Harness, mockProvider, seal } from '#core'
@@ -11,7 +11,9 @@ import { ChainNode, localJurorClient, sealTime } from '../packages/node/src/inde
 import { LocalBus } from '../packages/gossip/src/index.js'
 
 const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('verafyharness/package.json'))
-export const CONFIG = JSON.parse(readFileSync(join(HARNESS_ROOT, 'swarm.config.json'), 'utf8'))
+// verafy.config.json after the verafyHarness rename; swarm.config.json before it.
+const CONFIG_FILE = ['verafy.config.json', 'swarm.config.json'].find(f => existsSync(join(HARNESS_ROOT, f))) ?? 'verafy.config.json'
+export const CONFIG = JSON.parse(readFileSync(join(HARNESS_ROOT, CONFIG_FILE), 'utf8'))
 export const SCRIPT = JSON.parse(readFileSync(join(HARNESS_ROOT, 'examples', 'mock-answers.json'), 'utf8'))
 
 /**

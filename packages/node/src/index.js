@@ -1,5 +1,5 @@
 /**
- * Swarm Chain node: mempool, jury coordination, sealer rotation, block store.
+ * Verafy Chain node: mempool, jury coordination, sealer rotation, block store.
  * @module swarmchain/node
  */
 export { ChainNode } from './node.js'
