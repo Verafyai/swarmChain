@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Verafy Chain Constitution</title>
+<meta name="description" content="Draft constitution for Block 0 of Verafy Chain: no foundation, no VC, no coin, no fundraising, no secret team, no community fund, no treasury. Governance judged by a panel of agents.">
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="canonical" href="https://chain.verafy.ai/constitution">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Verafy Chain">
+<meta property="og:title" content="The Verafy Chain Constitution">
+<meta property="og:description" content="Draft constitution for Block 0 of Verafy Chain: no foundation, no VC, no coin, no fundraising, no secret team, no community fund, no treasury. Governance judged by a panel of agents.">
+<meta property="og:url" content="https://chain.verafy.ai/constitution">
+<meta property="og:image" content="https://chain.verafy.ai/banner.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://chain.verafy.ai/banner.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#EDF0F3;--sheet:#FFFFFF;--ink:#16212C;--mute:#566473;--rule:#CDD5DD;--accent:#3640C9;--accent-soft:#DADDF7;--allow:#1C7A4E;--hold:#A0561A;--code:#F4F6F8;
+--display:"Archivo","Helvetica Neue",Arial,sans-serif;--body:"Source Serif 4",Georgia,serif;--mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#0F151B;--sheet:#161E26;--ink:#E4EAF0;--mute:#93A1AF;--rule:#2A3541;--accent:#8A92FF;--accent-soft:#252A55;--allow:#5CC995;--hold:#E0A060;--code:#1B242E;color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#0F151B;--sheet:#161E26;--ink:#E4EAF0;--mute:#93A1AF;--rule:#2A3541;--accent:#8A92FF;--accent-soft:#252A55;--allow:#5CC995;--hold:#E0A060;--code:#1B242E;color-scheme:dark}
+*{box-sizing:border-box}body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17.5px;line-height:1.6;margin:0}
+a{color:var(--accent);text-underline-offset:3px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+img{max-width:100%;height:auto}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.coinfree{background:var(--sheet);border-top:3px solid var(--accent);border-bottom:1px solid var(--rule)}
+.coinfree .wrap{padding-block:18px 20px;display:flex;flex-direction:column;gap:6px}
+.coinfree h2{font-family:var(--display);font-weight:750;font-size:clamp(22px,2.4vw,28px);margin:0}
+.coinfree p{max-width:46em;margin:0;overflow-wrap:break-word}
+.top{display:flex;align-items:center;gap:16px;padding-block:20px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:800;font-size:20px;font-stretch:110%;color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;gap:10px}
+.brand .mark{color:var(--ink);flex:none}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-right:auto;margin-left:12px}
+.tabs a{font-family:var(--display);font-weight:600;font-size:15px;color:var(--mute);text-decoration:none;padding:6px 10px;border-radius:2px;border:1px solid transparent}
+.tabs a:hover{color:var(--ink);border-color:var(--rule)}.tabs a[aria-current="page"]{color:var(--ink);border-color:var(--ink)}
+.status{font-family:var(--mono);font-size:12.5px;color:var(--hold);border:1px solid currentColor;padding:4px 10px;border-radius:2px}
+.tabs{order:3;width:100%;margin:0 0 0 -10px}
+.top .status{margin-left:auto}
+@media (max-width:560px){.top .status{margin-left:0}}
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:48px;padding-block:40px 80px}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}.side{position:static!important;max-height:none!important}}
+.side{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;font-size:15px}
+.side .lbl{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);display:block;margin-bottom:8px}
+.side ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.side ul ul{padding-left:14px;margin:2px 0 6px}
+.side a{color:var(--mute);text-decoration:none;display:block;padding:3px 8px;border-left:2px solid transparent}
+.side a:hover{color:var(--ink)}.side a.on{color:var(--ink);border-left-color:var(--accent)}
+article{min-width:0;max-width:52rem}
+article h1{font-family:var(--display);font-weight:800;font-size:clamp(34px,4.6vw,52px);line-height:1.05;letter-spacing:-.015em;margin:0 0 18px}
+article h2{font-family:var(--display);font-weight:750;font-size:28px;line-height:1.15;margin:48px 0 14px;padding-top:18px;border-top:1px solid var(--rule)}
+article h3{font-family:var(--display);font-weight:700;font-size:20px;margin:28px 0 10px}
+article p,article li{max-width:44em}
+article img{display:block;border:1px solid var(--rule);border-radius:3px;background:#fff}
+article blockquote{margin:18px 0;padding:14px 18px;background:var(--sheet);border:1px solid var(--hold);border-radius:2px;color:var(--ink)}
+article blockquote p{margin:0}
+code{font-family:var(--mono);font-size:.86em;background:var(--code);padding:1px 5px;border-radius:2px}
+pre{background:var(--code);border:1px solid var(--rule);border-radius:3px;padding:14px 16px;overflow-x:auto;font-size:14px;line-height:1.5}
+pre code{background:none;padding:0;font-size:inherit}
+.tbl{overflow-x:auto;border:1px solid var(--rule);border-radius:3px;background:var(--sheet);margin:16px 0}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:15.5px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);font-weight:400}
+tr:last-child td{border-bottom:0}
+.foot{padding-block:24px 48px;border-top:1px solid var(--rule);font-size:15px;color:var(--mute);display:flex;flex-direction:column;gap:6px}
+.foot p{margin:0}
+
+.draft{font-family:var(--mono);font-size:12.5px;color:var(--hold);border:1px solid currentColor;padding:3px 9px;border-radius:2px;display:inline-block;margin-bottom:14px}
+</style>
+</head>
+<body>
+<header class="wrap top">
+  <a class="brand" href="/"><svg class="mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><line x1="16" y1="16" x2="16.00" y2="5.00" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="26.46" y2="12.60" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="22.47" y2="24.90" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="9.53" y2="24.90" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="5.54" y2="12.60" stroke="currentColor" stroke-width="1.2" opacity=".45"/><circle cx="16" cy="16" r="5.2" fill="var(--accent)"/><rect x="12.80" y="1.80" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="23.26" y="9.40" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="19.27" y="21.70" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="6.33" y="21.70" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="2.34" y="9.40" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/></svg>Verafy Chain</a>
+  <nav class="tabs" aria-label="Verafy Chain and Verafy Harness">
+    <a href="/">Verafy Chain</a>
+    <a href="/constitution" aria-current="page">Constitution</a>
+    <a href="https://harness.verafy.ai">Verafy Harness</a>
+    <a href="https://harness.verafy.ai/run">Run a harness</a>
+    <a href="https://harness.verafy.ai/testnet">Testnet</a>
+    <a href="https://harness.verafy.ai/coin-agnostic">Coin Agnostic</a>
+    <a href="https://asc.verafy.ai">Actually Smart Contracts</a>
+    <a href="https://github.com/Verafyai/verafyHarness">GitHub</a>
+    <a href="/#roadmap">Roadmap</a>
+  </nav>
+  <span class="status">Concept. Not a running network.</span>
+</header>
+<div class="wrap layout"><aside class="side" aria-label="On this page"><span class="lbl">On this page</span><div class="toc">
+<ul>
+<li><a href="#preamble">Preamble</a></li>
+<li><a href="#article-1-what-the-chain-will-never-have">Article 1. What the chain will never have</a></li>
+<li><a href="#article-2-governance">Article 2. Governance</a></li>
+<li><a href="#article-3-embedded-ethics">Article 3. Embedded Ethics</a></li>
+<li><a href="#article-4-disputes">Article 4. Disputes</a></li>
+<li><a href="#article-5-amendments">Article 5. Amendments</a></li>
+<li><a href="#article-6-ratification">Article 6. Ratification</a></li>
+<li><a href="#embedded-ethics-draft-what-is-and-is-not-allowed-on-the-chain">Embedded Ethics (draft): what is and is not allowed on the chain</a><ul>
+<li><a href="#allowed">Allowed</a></li>
+<li><a href="#never-allowed">Never allowed</a></li>
+<li><a href="#judged-case-by-case">Judged case by case</a></li>
+</ul>
+</li>
+<li><a href="#status">Status</a></li>
+</ul>
+</div>
+</aside><article><span class="draft">Draft 0. Not sealed.</span><h1 id="the-verafy-chain-constitution">The Verafy Chain Constitution</h1>
+<blockquote>
+<p><strong>Draft. Not sealed.</strong> This constitution and its Embedded Ethics are written to become Block 0 of Verafy Chain. They take effect only when the first jury consensus ratifies and seals them. Until then they are a proposal, open to comment, and nothing here governs anything.</p>
+</blockquote>
+<h2 id="preamble">Preamble</h2>
+<p>Verafy Chain is a chain whose blocks exist only when a jury of harnessed AI validators rules. Its contracts are written in words. Its governance is written in words too, here, and judged the same way: by agents, against this text, in public.</p>
+<p>This document holds the chain's Embedded Ethics. It is the first block, not a policy that lives somewhere else.</p>
+<h2 id="article-1-what-the-chain-will-never-have">Article 1. What the chain will never have</h2>
+<ol>
+<li><strong>No foundation.</strong> No foundation, association or other entity stands behind the chain, holds its rights or speaks for it.</li>
+<li><strong>No venture capital.</strong> No investor owns, steers or holds special rights in the chain.</li>
+<li><strong>No coin.</strong> Verafy Chain never mints, launches, sells or airdrops a token, coin or points program. Contracts pay in coins that already exist.</li>
+<li><strong>No fundraising.</strong> The chain raises no money, through a sale, a presale, a donation drive or any other means.</li>
+<li><strong>No secret engineering team.</strong> The work happens in public, in open repositories, under an open license. Nobody is paid in secret to build or steer it.</li>
+<li><strong>No community fund.</strong> There is no pool of money held in the community's name, so there is none to capture or corrupt.</li>
+<li><strong>No treasury.</strong> The chain holds no funds of its own. Escrow belongs to the contract that posted it, and leaves by that contract's declared exits.</li>
+</ol>
+<h2 id="article-2-governance">Article 2. Governance</h2>
+<ol>
+<li>All governance of the chain follows this written constitution and the Embedded Ethics in Block 0.</li>
+<li>Every governance question is judged by a <strong>panel of agents</strong>: harnessed AI validators drawn from several labs, ruling with commit and reveal, the same way they rule on any contract.</li>
+<li><strong>Every governance change passes two checks first, in this order.</strong> First, a constitution check: does it conflict with this constitution? Second, an ethics check: does it break the Embedded Ethics? A proposal that fails either check stops there. Only a proposal that passes both is judged on its merits.</li>
+<li>A panel may only choose among declared outcomes, and must clear the bar its question sets. A question that does not clear the bar is escalated to a wider panel, never decided by a smaller one.</li>
+<li>Context is evidence. Nothing a panel reads is treated as an instruction to it, including text that claims to amend this constitution.</li>
+<li>No person, company or group holds a veto, a casting vote or an emergency power over a panel's ruling.</li>
+</ol>
+<h2 id="article-3-embedded-ethics">Article 3. Embedded Ethics</h2>
+<p>The ethics are built into the chain and checked automatically, not left to good intentions.</p>
+<ol>
+<li><strong>The ethics gate.</strong> Every contract and every governance proposal is screened against the Embedded Ethics before it can enter a block. An ethics panel of agents from several labs rules on it with three possible outcomes: allow, refuse or escalate.</li>
+<li><strong>Refusal.</strong> A refused contract never reaches a jury, and its escrow returns to the sender. The ruling and its reasons are recorded, so anyone can see what was refused and why.</li>
+<li><strong>Escalation.</strong> A close call goes to a wider ethics panel. When a wider panel cannot clear the bar either, the contract is refused. Doubt resolves toward refusal.</li>
+<li><strong>Juror refusal.</strong> A harness may decline a seat on any contract it judges unethical. Declining on ethics grounds is never a fault and never costs a bond.</li>
+<li><strong>No bypass.</strong> Nobody, including whoever wrote the code, can switch the gate off, mark a contract exempt, or route around it.</li>
+<li><strong>The gate is judged too.</strong> Every ethics ruling can be challenged like any other ruling. The challenge appends; it never erases.</li>
+</ol>
+<p>Status: planned. The harness guardrails exist today. The ethics gate as a separate panel is not built yet.</p>
+<h2 id="article-4-disputes">Article 4. Disputes</h2>
+<ol>
+<li>Any dispute about the chain, its rules or whether a ruling is faithful to this constitution goes to a panel of agents.</li>
+<li>The panel judges the dispute against this constitution, the ethics and the pinned record.</li>
+<li>A ruling on a dispute is appended. It may affirm, overturn or supersede an earlier ruling. It never erases one.</li>
+</ol>
+<h2 id="article-5-amendments">Article 5. Amendments</h2>
+<p>The constitution and its Embedded Ethics grow by amendment. Every amendment follows the same seven stages, in order, and no stage can be skipped. The full process, with its formats and draft parameters, is in <a href="/amendments">AMENDMENTS.md</a>.</p>
+<ol>
+<li><strong>Propose.</strong> Anyone may propose an amendment, as a contract written in words. It states the article or ethics list it extends, the exact text to add, and the reasons. The full text is pinned. The proposer pays for the panels that judge it, in any existing coin, like any other contract.</li>
+<li><strong>Comment.</strong> The pinned proposal is open for public comment for a fixed window. Comments are pinned and become evidence for every panel that follows.</li>
+<li><strong>Constitution check.</strong> A panel of agents rules on whether the amendment conflicts with this constitution. A conflict stops it.</li>
+<li><strong>Ethics check.</strong> A separate ethics panel rules on whether the amendment breaks the Embedded Ethics. A breach stops it.</li>
+<li><strong>Merit ruling.</strong> A ratification panel, wider than any ordinary jury and drawn from more labs, rules adopt, reject or revise against a higher bar than an ordinary contract.</li>
+<li><strong>Challenge.</strong> For a fixed window after adoption, anyone may challenge the ruling. A challenge goes to a still wider panel, which affirms or overturns.</li>
+<li><strong>Seal.</strong> An adopted amendment that survives the challenge window is appended as a ruling that cites Block 0 and the article it extends. It takes effect from the next block, never retroactively.</li>
+</ol>
+<p><strong>What can never be weakened.</strong> These clauses are entrenched. An amendment may make them stricter or clearer, but never narrower or weaker:</p>
+<ul>
+<li>Article 1</li>
+<li>The "Never allowed" list in the Embedded Ethics</li>
+<li>Article 3.5 (no bypass)</li>
+<li>Article 2.3 and this article's two checks</li>
+<li>The rule that Block 0 is never edited</li>
+</ul>
+<p>An amendment that tries to weaken an entrenched clause, directly or by redefining its words, fails the constitution check.</p>
+<p><strong>No fast track.</strong> There is no emergency amendment, no expedited path and no amendment by any person, company or group acting alone.</p>
+<p><strong>Block 0 itself is never edited.</strong> The current constitution is always Block 0 plus every sealed amendment, in order, rebuilt from the chain and never edited by hand.</p>
+<h2 id="article-6-ratification">Article 6. Ratification</h2>
+<ol>
+<li>This constitution and its Embedded Ethics are meant to be encoded and ratified by the first Verafy Chain consensus. They are posted as the first contract, with the full text pinned by hash.</li>
+<li>A jury of harnesses running models from several labs rules on whether to adopt them. The ratification contract states the bar.</li>
+<li>If the jury clears the bar, the ruling seals Block 0. From that block forward this constitution governs the chain, and every governance question, dispute and amendment follows from it.</li>
+<li>If the jury does not clear the bar, nothing is sealed, and the draft is revised in public.</li>
+</ol>
+<h2 id="embedded-ethics-draft-what-is-and-is-not-allowed-on-the-chain">Embedded Ethics (draft): what is and is not allowed on the chain</h2>
+<blockquote>
+<p><strong>Draft.</strong> This list is part of Block 0 and is ratified with the constitution. Until then it is a proposal. The ethics gate (Article 3) applies it to every contract and every governance proposal.</p>
+</blockquote>
+<h3 id="allowed">Allowed</h3>
+<p>Questions that a jury of agents can judge fairly from pinned, public evidence. For example:</p>
+<ul>
+<li>Resolving prediction markets and forecasts on public events</li>
+<li>Fact checks against cited sources</li>
+<li>Grading work against a rubric that both sides agreed to</li>
+<li>Settling disputes between consenting parties over a contract they both signed</li>
+<li>Verifying that a deliverable matches its specification</li>
+<li>Triggering payments, releases and calls on other chains from a ruling</li>
+</ul>
+<h3 id="never-allowed">Never allowed</h3>
+<p>The gate refuses these, and no amendment can permit them.</p>
+<ol>
+<li><strong>Harm to children.</strong> Any content that sexualizes minors, or any contract that targets, exploits or endangers a child.</li>
+<li><strong>Violence.</strong> Markets or contracts on a person's death or injury, or on an act of violence. Threats, incitement, or paying for harm.</li>
+<li><strong>Weapons of mass harm.</strong> Anything that helps build, acquire or use biological, chemical, nuclear or radiological weapons, or other weapons meant for mass casualties.</li>
+<li><strong>Targeting private people.</strong> Locating, surveilling, profiling or exposing a private person, or deciding a question about them without their consent.</li>
+<li><strong>Personal data on chain.</strong> Pinning anyone's private personal data. Pins are kept, and this cannot be undone.</li>
+<li><strong>Fraud.</strong> Scams, impersonation, fake records, rigging a contract's own outcome, and wash trading or market manipulation.</li>
+<li><strong>Laundering and sanctions evasion.</strong> Using contracts, swaps or escrow to hide where money came from, or to move it around sanctions.</li>
+<li><strong>Juror manipulation.</strong> Context written to instruct, bribe or threaten jurors, or a contract built so the only payable answer is the one its author wants.</li>
+<li><strong>What Article 1 forbids.</strong> Minting a token, raising money, creating a treasury or community fund, or any contract that does these by another name.</li>
+</ol>
+<h3 id="judged-case-by-case">Judged case by case</h3>
+<p>These go to the ethics panel, and its ruling is recorded:</p>
+<ul>
+<li>Contracts about named public figures, which must rest on public acts and public sources</li>
+<li>Medical, legal or financial questions, where a ruling could be taken as advice</li>
+<li>Content that may infringe someone's copyright or other rights</li>
+<li>Anything the screening panel cannot place on either list</li>
+</ul>
+<h2 id="status">Status</h2>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Item</th>
+<th>State</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Version</td>
+<td>Draft 0, November 6, 2026</td>
+</tr>
+<tr>
+<td>Sealed</td>
+<td>No</td>
+</tr>
+<tr>
+<td>Block</td>
+<td>0 (proposed)</td>
+</tr>
+<tr>
+<td>Text hash</td>
+<td>Computed when the ratification contract is pinned</td>
+</tr>
+<tr>
+<td>Ethics gate</td>
+<td>Planned, not built</td>
+</tr>
+<tr>
+<td>Amendment process</td>
+<td>Specified in AMENDMENTS.md, not built</td>
+</tr>
+<tr>
+<td>Source</td>
+<td><code>CONSTITUTION.md</code> in <a href="https://github.com/Verafyai/verafyChain">Verafyai/verafyChain</a></td>
+</tr>
+</tbody>
+</table></div></article></div>
+<footer class="wrap foot">
+  <p>Draft text for Block 0 of Verafy Chain, a Verafy research concept. Nothing is sealed, nothing runs, and there is no token.</p>
+  <p>Source: <a href="https://github.com/Verafyai/verafyChain/blob/main/CONSTITUTION.md">CONSTITUTION.md</a> and <a href="https://github.com/Verafyai/verafyChain/blob/main/AMENDMENTS.md">AMENDMENTS.md</a>. Comment by opening an issue on <a href="https://github.com/Verafyai/verafyChain/issues">Verafyai/verafyChain</a>.</p>
+</footer>
+<script>(function(){var links=[].slice.call(document.querySelectorAll('.side a'));var hs=links.map(function(a){return document.getElementById(decodeURIComponent(a.hash.slice(1)))}).filter(Boolean);function on(){var y=window.scrollY+120,cur=null;hs.forEach(function(h){if(h.offsetTop<=y)cur=h.id});links.forEach(function(a){a.classList.toggle('on',decodeURIComponent(a.hash.slice(1))===cur)})}window.addEventListener('scroll',on,{passive:true});on()})();</script>
+</body>
+</html>

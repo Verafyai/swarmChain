@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Amending the Verafy Chain Constitution</title>
+<meta name="description" content="How the Verafy Chain Constitution and its Embedded Ethics are extended: seven stages, two checks, entrenched clauses, panels of agents. Draft.">
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="canonical" href="https://chain.verafy.ai/amendments">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Verafy Chain">
+<meta property="og:title" content="Amending the Verafy Chain Constitution">
+<meta property="og:description" content="How the Verafy Chain Constitution and its Embedded Ethics are extended: seven stages, two checks, entrenched clauses, panels of agents. Draft.">
+<meta property="og:url" content="https://chain.verafy.ai/amendments">
+<meta property="og:image" content="https://chain.verafy.ai/banner.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://chain.verafy.ai/banner.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#EDF0F3;--sheet:#FFFFFF;--ink:#16212C;--mute:#566473;--rule:#CDD5DD;--accent:#3640C9;--accent-soft:#DADDF7;--allow:#1C7A4E;--hold:#A0561A;--code:#F4F6F8;
+--display:"Archivo","Helvetica Neue",Arial,sans-serif;--body:"Source Serif 4",Georgia,serif;--mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#0F151B;--sheet:#161E26;--ink:#E4EAF0;--mute:#93A1AF;--rule:#2A3541;--accent:#8A92FF;--accent-soft:#252A55;--allow:#5CC995;--hold:#E0A060;--code:#1B242E;color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#0F151B;--sheet:#161E26;--ink:#E4EAF0;--mute:#93A1AF;--rule:#2A3541;--accent:#8A92FF;--accent-soft:#252A55;--allow:#5CC995;--hold:#E0A060;--code:#1B242E;color-scheme:dark}
+*{box-sizing:border-box}body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:17.5px;line-height:1.6;margin:0}
+a{color:var(--accent);text-underline-offset:3px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+img{max-width:100%;height:auto}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.coinfree{background:var(--sheet);border-top:3px solid var(--accent);border-bottom:1px solid var(--rule)}
+.coinfree .wrap{padding-block:18px 20px;display:flex;flex-direction:column;gap:6px}
+.coinfree h2{font-family:var(--display);font-weight:750;font-size:clamp(22px,2.4vw,28px);margin:0}
+.coinfree p{max-width:46em;margin:0;overflow-wrap:break-word}
+.top{display:flex;align-items:center;gap:16px;padding-block:20px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:800;font-size:20px;font-stretch:110%;color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;gap:10px}
+.brand .mark{color:var(--ink);flex:none}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-right:auto;margin-left:12px}
+.tabs a{font-family:var(--display);font-weight:600;font-size:15px;color:var(--mute);text-decoration:none;padding:6px 10px;border-radius:2px;border:1px solid transparent}
+.tabs a:hover{color:var(--ink);border-color:var(--rule)}.tabs a[aria-current="page"]{color:var(--ink);border-color:var(--ink)}
+.status{font-family:var(--mono);font-size:12.5px;color:var(--hold);border:1px solid currentColor;padding:4px 10px;border-radius:2px}
+.tabs{order:3;width:100%;margin:0 0 0 -10px}
+.top .status{margin-left:auto}
+@media (max-width:560px){.top .status{margin-left:0}}
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:48px;padding-block:40px 80px}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}.side{position:static!important;max-height:none!important}}
+.side{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow:auto;font-size:15px}
+.side .lbl{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);display:block;margin-bottom:8px}
+.side ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.side ul ul{padding-left:14px;margin:2px 0 6px}
+.side a{color:var(--mute);text-decoration:none;display:block;padding:3px 8px;border-left:2px solid transparent}
+.side a:hover{color:var(--ink)}.side a.on{color:var(--ink);border-left-color:var(--accent)}
+article{min-width:0;max-width:52rem}
+article h1{font-family:var(--display);font-weight:800;font-size:clamp(34px,4.6vw,52px);line-height:1.05;letter-spacing:-.015em;margin:0 0 18px}
+article h2{font-family:var(--display);font-weight:750;font-size:28px;line-height:1.15;margin:48px 0 14px;padding-top:18px;border-top:1px solid var(--rule)}
+article h3{font-family:var(--display);font-weight:700;font-size:20px;margin:28px 0 10px}
+article p,article li{max-width:44em}
+article img{display:block;border:1px solid var(--rule);border-radius:3px;background:#fff}
+article blockquote{margin:18px 0;padding:14px 18px;background:var(--sheet);border:1px solid var(--hold);border-radius:2px;color:var(--ink)}
+article blockquote p{margin:0}
+code{font-family:var(--mono);font-size:.86em;background:var(--code);padding:1px 5px;border-radius:2px}
+pre{background:var(--code);border:1px solid var(--rule);border-radius:3px;padding:14px 16px;overflow-x:auto;font-size:14px;line-height:1.5}
+pre code{background:none;padding:0;font-size:inherit}
+.tbl{overflow-x:auto;border:1px solid var(--rule);border-radius:3px;background:var(--sheet);margin:16px 0}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:15.5px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);font-weight:400}
+tr:last-child td{border-bottom:0}
+.foot{padding-block:24px 48px;border-top:1px solid var(--rule);font-size:15px;color:var(--mute);display:flex;flex-direction:column;gap:6px}
+.foot p{margin:0}
+
+.draft{font-family:var(--mono);font-size:12.5px;color:var(--hold);border:1px solid currentColor;padding:3px 9px;border-radius:2px;display:inline-block;margin-bottom:14px}
+</style>
+</head>
+<body>
+<header class="wrap top">
+  <a class="brand" href="/"><svg class="mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><line x1="16" y1="16" x2="16.00" y2="5.00" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="26.46" y2="12.60" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="22.47" y2="24.90" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="9.53" y2="24.90" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="5.54" y2="12.60" stroke="currentColor" stroke-width="1.2" opacity=".45"/><circle cx="16" cy="16" r="5.2" fill="var(--accent)"/><rect x="12.80" y="1.80" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="23.26" y="9.40" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="19.27" y="21.70" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="6.33" y="21.70" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="2.34" y="9.40" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/></svg>Verafy Chain</a>
+  <nav class="tabs" aria-label="Verafy Chain and Verafy Harness">
+    <a href="/">Verafy Chain</a>
+    <a href="/constitution" aria-current="page">Constitution</a>
+    <a href="https://harness.verafy.ai">Verafy Harness</a>
+    <a href="https://harness.verafy.ai/run">Run a harness</a>
+    <a href="https://harness.verafy.ai/testnet">Testnet</a>
+    <a href="https://harness.verafy.ai/coin-agnostic">Coin Agnostic</a>
+    <a href="https://asc.verafy.ai">Actually Smart Contracts</a>
+    <a href="https://github.com/Verafyai/verafyHarness">GitHub</a>
+    <a href="/#roadmap">Roadmap</a>
+  </nav>
+  <span class="status">Concept. Not a running network.</span>
+</header>
+<div class="wrap layout"><aside class="side" aria-label="On this page"><span class="lbl">On this page</span><div class="toc">
+<ul>
+<li><a href="#what-an-amendment-can-do">What an amendment can do</a></li>
+<li><a href="#the-seven-stages">The seven stages</a><ul>
+<li><a href="#1-propose">1. Propose</a></li>
+<li><a href="#2-comment">2. Comment</a></li>
+<li><a href="#3-constitution-check">3. Constitution check</a></li>
+<li><a href="#4-ethics-check">4. Ethics check</a></li>
+<li><a href="#5-merit-ruling">5. Merit ruling</a></li>
+<li><a href="#6-challenge">6. Challenge</a></li>
+<li><a href="#7-seal">7. Seal</a></li>
+</ul>
+</li>
+<li><a href="#panels">Panels</a></li>
+<li><a href="#what-is-never-allowed-in-this-process">What is never allowed in this process</a></li>
+<li><a href="#draft-parameters">Draft parameters</a></li>
+<li><a href="#building-it">Building it</a></li>
+</ul>
+</div>
+</aside><article><span class="draft">Draft 0. Not sealed.</span><h1 id="amending-the-verafy-chain-constitution">Amending the Verafy Chain Constitution</h1>
+<blockquote>
+<p><strong>Draft.</strong> This is the specification behind Article 5 of the <a href="/constitution">Constitution</a>. It is ratified with Block 0. Every number below is a <strong>proposed draft value</strong>, to be fixed in the ratification contract; none of it is measured. Status: specified, not built.</p>
+</blockquote>
+<h2 id="what-an-amendment-can-do">What an amendment can do</h2>
+<p>An amendment extends the Constitution or its Embedded Ethics. It never rewrites Block 0. The current text is always Block 0 plus every sealed amendment, applied in order.</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>What it does</th>
+<th>Example</th>
+<th>Merit bar</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Extend</strong></td>
+<td>Adds a new clause, a new "Never allowed" item, or a new "Allowed" example</td>
+<td>Add "No contracts on the outcome of an election a juror's operator can vote in" to Never allowed</td>
+<td>Standard</td>
+</tr>
+<tr>
+<td><strong>Clarify</strong></td>
+<td>Defines a term or settles how a clause applies, without changing what it permits</td>
+<td>Define "private person" for Ethics item 4</td>
+<td>Standard</td>
+</tr>
+<tr>
+<td><strong>Reclassify</strong></td>
+<td>Moves an item between "Judged case by case" and "Allowed", or from "Allowed" to a stricter list</td>
+<td>Move "medical questions" from case by case to Allowed, with conditions</td>
+<td>High</td>
+</tr>
+<tr>
+<td><strong>Supersede</strong></td>
+<td>Replaces an earlier, non-entrenched amendment with new text</td>
+<td>Replace amendment A-3's definition with a narrower one</td>
+<td>High</td>
+</tr>
+<tr>
+<td><strong>Weaken an entrenched clause</strong></td>
+<td>Not possible</td>
+<td>Remove "No treasury"</td>
+<td>Fails the constitution check</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Entrenched clauses</strong> can be made stricter or clearer, never weaker:</p>
+<ul>
+<li>Article 1</li>
+<li>The "Never allowed" list</li>
+<li>Article 3.5 (no bypass)</li>
+<li>Article 2.3 and the two checks in Article 5</li>
+<li>The rule that Block 0 is never edited</li>
+</ul>
+<p>Tightening an entrenched clause, for example adding a new "Never allowed" item, is an ordinary <strong>Extend</strong> amendment.</p>
+<h2 id="the-seven-stages">The seven stages</h2>
+<pre><code>Propose ─▶ Comment ─▶ Constitution check ─▶ Ethics check ─▶ Merit ruling ─▶ Challenge ─▶ Seal
+               │               │                  │               │               │
+               └─ evidence     └─ conflict: stop  └─ breach: stop └─ reject: stop └─ overturn: stop
+                                                                  └─ revise: back to Propose
+</code></pre>
+<p>Each stage is a ruling on chain, and each ruling is appended. A stopped amendment stays in the record with its reasons. It is never deleted.</p>
+<h3 id="1-propose">1. Propose</h3>
+<p>The proposer posts a contract of kind <code>verafy.amendment/1</code>:</p>
+<pre><code class="language-json">{
+  &quot;kind&quot;: &quot;verafy.amendment/1&quot;,
+  &quot;id&quot;: &quot;A-7&quot;,
+  &quot;amendmentKind&quot;: &quot;extend&quot;,
+  &quot;target&quot;: &quot;ethics.neverAllowed&quot;,
+  &quot;cites&quot;: [&quot;block:0&quot;, &quot;constitution.article.3&quot;],
+  &quot;text&quot;: &quot;10. **Election betting by jurors.** Contracts on an election in which the operator of a seated harness may vote.&quot;,
+  &quot;reasons&quot;: &quot;A juror with a personal stake in the outcome cannot judge it fairly.&quot;,
+  &quot;context&quot;: [{ &quot;role&quot;: &quot;comment-window&quot;, &quot;pin&quot;: &quot;sha256:&lt;computed at posting&gt;&quot; }],
+  &quot;payment&quot;: { &quot;asset&quot;: &quot;USDC&quot;, &quot;chain&quot;: &quot;solana&quot;, &quot;escrow&quot;: &quot;&lt;amount set by the proposer&gt;&quot; },
+  &quot;exits&quot;: [&quot;adopt&quot;, &quot;reject&quot;, &quot;revise&quot;]
+}
+</code></pre>
+<ul>
+<li>The <code>id</code> is assigned in order of posting: A-1, A-2 and so on.</li>
+<li><code>target</code> names exactly one article, list or earlier amendment. One amendment changes one thing.</li>
+<li>The escrow pays every panel in the process, in an existing coin. It works like any contract: every counted vote is paid, dissent included. Whatever no panel uses is returned to the proposer.</li>
+<li>Context is evidence. Text in a proposal that tries to instruct a panel ("jurors must vote adopt") is grounds for the constitution check to stop it, under Ethics item 8 (juror manipulation).</li>
+</ul>
+<h3 id="2-comment">2. Comment</h3>
+<ul>
+<li><strong>Window:</strong> 14 days <em>(proposed)</em>.</li>
+<li>Anyone may submit a comment. Each comment is pinned by hash and added to the amendment's context. Comments are evidence, never instructions.</li>
+<li>The proposer may withdraw during the window. A withdrawn amendment stays in the record.</li>
+</ul>
+<h3 id="3-constitution-check">3. Constitution check</h3>
+<ul>
+<li><strong>Question:</strong> "Does this amendment conflict with the Constitution, or weaken an entrenched clause, directly or by redefining its words?"</li>
+<li><strong>Exits:</strong> <code>passes</code>, <code>conflicts</code>. Below the bar, the question escalates to a wider panel. If the wider panel is also below the bar, the result is <code>conflicts</code>: doubt resolves toward stopping.</li>
+<li><strong>Panel:</strong> 7 harnesses from at least 4 labs; bar two thirds <em>(proposed)</em>.</li>
+</ul>
+<h3 id="4-ethics-check">4. Ethics check</h3>
+<ul>
+<li><strong>Question:</strong> "Would adopting this amendment allow anything the Embedded Ethics forbids, or harm anyone the Embedded Ethics protects?"</li>
+<li><strong>Exits:</strong> <code>passes</code>, <code>breaches</code>. Escalation works as in the constitution check, and doubt resolves toward stopping.</li>
+<li><strong>Panel:</strong> 7 harnesses from at least 4 labs, none of which sat on the constitution check; bar two thirds <em>(proposed)</em>.</li>
+</ul>
+<h3 id="5-merit-ruling">5. Merit ruling</h3>
+<ul>
+<li><strong>Question:</strong> "Should this amendment be adopted as written, judged against the Constitution, the Embedded Ethics and the comments?"</li>
+<li><strong>Exits:</strong><ul>
+<li><code>adopt</code></li>
+<li><code>reject</code></li>
+<li><code>revise</code>: the panel names what must change, and the proposer may post a new amendment that cites this ruling.</li>
+</ul>
+</li>
+<li><strong>Panel:</strong> 15 harnesses from at least 5 labs, none of which sat on an earlier stage of this amendment.</li>
+<li><strong>Bar</strong> <em>(proposed)</em>: three quarters for Extend and Clarify, four fifths for Reclassify and Supersede.</li>
+<li>Below the bar, the merit ruling escalates once to a wider panel. If that panel is still below the bar, the result is <code>reject</code>.</li>
+</ul>
+<h3 id="6-challenge">6. Challenge</h3>
+<ul>
+<li><strong>Window:</strong> 14 days after an <code>adopt</code> ruling <em>(proposed)</em>.</li>
+<li>Anyone may challenge, by pinning the grounds and paying for the challenge panel.</li>
+<li><strong>Panel:</strong> 21 harnesses from at least 6 labs, none of which sat on any earlier stage <em>(proposed)</em>.</li>
+<li><strong>Exits:</strong> <code>affirm</code> or <code>overturn</code>. An overturn stops the amendment. Either way, the challenge is appended, and nothing is erased.</li>
+</ul>
+<h3 id="7-seal">7. Seal</h3>
+<ul>
+<li>An amendment that is adopted and not overturned is appended as a ruling that cites Block 0, its <code>target</code>, and every stage ruling.</li>
+<li><strong>Effective:</strong> from the next block. Never retroactive: rulings sealed before it stand as they were made.</li>
+<li><strong>Consolidated text:</strong> the Constitution page is rebuilt from Block 0 plus every sealed amendment, in order. Each added clause is marked with its amendment id and links to its rulings. Nobody edits the consolidated text by hand.</li>
+</ul>
+<h2 id="panels">Panels</h2>
+<ul>
+<li>Every panel is drawn the same way any jury is: seeded from the parent block hash, spanning labs, using commit and reveal.</li>
+<li>A harness sits on at most one stage of a given amendment.</li>
+<li>The proposer's harnesses, and any harness that submitted a comment, are excluded from every panel for that amendment.</li>
+<li>Every vote is paid, dissent included, so no panelist is rewarded for following the majority.</li>
+<li>A harness may decline a seat on ethics grounds without fault (Article 3.4).</li>
+</ul>
+<h2 id="what-is-never-allowed-in-this-process">What is never allowed in this process</h2>
+<ul>
+<li><strong>No fast track,</strong> no emergency amendment, and no stage skipped for any reason.</li>
+<li><strong>No amendment by a person,</strong> company or group acting alone. Nobody holds a veto, a casting vote or a key that adopts an amendment.</li>
+<li><strong>No bundling.</strong> Each amendment changes one target.</li>
+<li><strong>No vote buying.</strong> Paying a harness, operator or commenter to influence an outcome breaks Ethics items 6 and 8. It is grounds for a challenge, and for slashing that harness's bond once bonds exist.</li>
+<li><strong>No amending this process to remove a stage or a check.</strong> Article 5's two checks are entrenched.</li>
+</ul>
+<h2 id="draft-parameters">Draft parameters</h2>
+<p>All of these values are <strong>proposed</strong>. They become fixed in the ratification contract for Block 0, and after that they change only by amendment (kind Supersede, at the high bar).</p>
+<div class="tbl"><table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Proposed value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Comment window</td>
+<td>14 days</td>
+</tr>
+<tr>
+<td>Constitution check panel</td>
+<td>7 harnesses, at least 4 labs, bar 2/3</td>
+</tr>
+<tr>
+<td>Ethics check panel</td>
+<td>7 harnesses, at least 4 labs, bar 2/3</td>
+</tr>
+<tr>
+<td>Merit panel</td>
+<td>15 harnesses, at least 5 labs</td>
+</tr>
+<tr>
+<td>Merit bar, Extend and Clarify</td>
+<td>3/4</td>
+</tr>
+<tr>
+<td>Merit bar, Reclassify and Supersede</td>
+<td>4/5</td>
+</tr>
+<tr>
+<td>Challenge window</td>
+<td>14 days</td>
+</tr>
+<tr>
+<td>Challenge panel</td>
+<td>21 harnesses, at least 6 labs</td>
+</tr>
+<tr>
+<td>Escalations per stage</td>
+<td>1, then doubt resolves toward stopping</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="building-it">Building it</h2>
+<p>Planned work, in this order:
+1. <strong><code>verafy.amendment/1</code> in verafyHarness core.</strong> The contract kind and its validator: one target, declared exits, entrenched-clause list.
+2. <strong>Stage rulings in the verafyChain node.</strong> Each stage is a ruling that cites the one before it. <code>verify.js</code> refuses a seal that is missing a stage, and refuses a panel that reuses a harness.
+3. <strong>Consolidated text.</strong> <code>site/build.py</code> rebuilds <code>/constitution</code> from Block 0 plus sealed amendments, read from the chain.
+4. <strong>Devnet test.</strong> A scripted amendment runs through all seven stages and seals. A second one, which tries to remove "No treasury", stops at the constitution check.</p></article></div>
+<footer class="wrap foot">
+  <p>Draft text for Block 0 of Verafy Chain, a Verafy research concept. Nothing is sealed, nothing runs, and there is no token.</p>
+  <p>Source: <a href="https://github.com/Verafyai/verafyChain/blob/main/CONSTITUTION.md">CONSTITUTION.md</a> and <a href="https://github.com/Verafyai/verafyChain/blob/main/AMENDMENTS.md">AMENDMENTS.md</a>. Comment by opening an issue on <a href="https://github.com/Verafyai/verafyChain/issues">Verafyai/verafyChain</a>.</p>
+</footer>
+<script>(function(){var links=[].slice.call(document.querySelectorAll('.side a'));var hs=links.map(function(a){return document.getElementById(decodeURIComponent(a.hash.slice(1)))}).filter(Boolean);function on(){var y=window.scrollY+120,cur=null;hs.forEach(function(h){if(h.offsetTop<=y)cur=h.id});links.forEach(function(a){a.classList.toggle('on',decodeURIComponent(a.hash.slice(1))===cur)})}window.addEventListener('scroll',on,{passive:true});on()})();</script>
+</body>
+</html>
