@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { Harness, mockProvider, seal } from '#core'
-import { ChainNode, localJurorClient } from '../packages/node/src/index.js'
+import { ChainNode, localJurorClient, sealTime } from '../packages/node/src/index.js'
 import { LocalBus } from '../packages/gossip/src/index.js'
 
 const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('verafyharness/package.json'))
@@ -27,16 +27,22 @@ export function example(name) {
 export const FIVE_LABS = CONFIG.pool.slice(0, 5).map(h => h.id)
 
 /**
+ * A second harness for each of the first five labs, for challenge juries that
+ * may not reuse the original jurors.
+ */
+export const SECOND_FIVE = CONFIG.pool.slice(0, 5).map(h => ({ ...h, id: `${h.id.replace(/-1$/, '')}-c` }))
+
+/**
  * Build a network.
- * @param {{nodes?: number, harnesses?: string[], script?: object}} [options] - node count, harness ids, scripted answers.
+ * @param {{nodes?: number, harnesses?: string[], script?: object, extra?: object[]}} [options] -
+ *   node count, harness ids, scripted answers, and setups for harnesses not in verafyHarness's pool.
  * @returns {Promise<object>} nodes, harnesses, and helpers.
  */
-export async function network({ nodes = 3, harnesses = FIVE_LABS, script = SCRIPT } = {}) {
+export async function network({ nodes = 3, harnesses = FIVE_LABS, script = SCRIPT, extra = [] } = {}) {
   const hs = new Map()
   for (const id of harnesses) {
-    const setup = CONFIG.pool.find(h => h.id === id)
-    const harness = new Harness({ ...setup, provider: null })
-    hs.set(id, { harness, before: asc => { harness.provider = mockProvider(script, asc.id, harness.lab) } })
+    const setup = CONFIG.pool.find(h => h.id === id) ?? extra.find(h => h.id === id)
+    hs.set(id, { harness: new Harness({ ...setup, provider: mockProvider(script) }) })
   }
   const bus = new LocalBus()
   const list = []
@@ -72,10 +78,11 @@ export async function network({ nodes = 3, harnesses = FIVE_LABS, script = SCRIP
  * Re-seal a block's rulings with a node's key, as a dishonest sealer would after tampering.
  * @param {object} node - the sealing node.
  * @param {object[]} rulings - the (tampered) rulings.
+ * @param {object[]} [reviews] - the (tampered) reviews.
  * @returns {object} a properly linked, hashed and signed block.
  */
-export function reseal(node, rulings) {
-  return seal(node.tip(), rulings, node.signer)
+export function reseal(node, rulings, reviews = []) {
+  return seal(node.tip(), rulings, node.signer, { time: sealTime(node.tip()), reviews })
 }
 
 /** A deep copy. */

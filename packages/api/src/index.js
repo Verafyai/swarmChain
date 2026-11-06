@@ -15,6 +15,7 @@
  * itself: it means something only alongside availability, bonds and challenges.
  * @module swarmchain/api
  */
+import { reviewStatus as statusOf } from '#core'
 
 /**
  * Build the read API over a node's store.
@@ -27,8 +28,7 @@ export function readApi(store) {
 
   function reviewStatus(id) {
     const history = store.reviews(id)
-    const last = history.at(-1)
-    return { status: last ? { affirm: 'affirmed', overturn: 'overturned', supersede: 'superseded' }[last.result] : 'none', reviewedBy: last?.byRuling ?? null, reviewCount: history.length }
+    return { status: statusOf(id, history), reviewedBy: history.at(-1)?.by ?? null, reviewCount: history.length }
   }
 
   function summary(r) {
@@ -50,7 +50,7 @@ export function readApi(store) {
       const r = store.ruling(ref)
       if (!r) return missing('ruling')
       const { round, ...ruling } = r.ruling
-      return ok({ ...summary(r), ruling, jury: round.jury, seed: round.seed, reviews: store.reviews(ref) })
+      return ok({ ...summary(r), ruling, jury: round.jury.map(c => c.id), seed: round.seed, sealer: round.sealer, faults: round.faults, reviews: store.reviews(ref) })
     }
     if (head === 'contracts' && !ref) return ok(store.contracts().map(({ asc, ...c }) => ({ ...c, title: asc.title })))
     if (head === 'contracts') return store.contract(ref) ? ok(store.contract(ref)) : missing('contract')
@@ -68,7 +68,7 @@ export function readApi(store) {
 export function harnessRecords(store) {
   const rec = new Map(store.harnesses().map(({ card, url }) => [card.id, { ...card, url, seated: 0, counted: 0, dissents: 0, earned: 0 }]))
   for (const { ruling } of store.rulings()) {
-    for (const id of ruling.round.jury) if (rec.has(id)) rec.get(id).seated++
+    for (const { id } of ruling.round.jury) if (rec.has(id)) rec.get(id).seated++
     for (const v of ruling.votes) if (rec.has(v.harness)) rec.get(v.harness).counted++
     for (const d of ruling.dissent) if (rec.has(d.harness)) rec.get(d.harness).dissents++
     for (const d of ruling.diff) {

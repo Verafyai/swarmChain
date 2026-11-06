@@ -30,7 +30,7 @@ export async function startNode({ id, port, host = '127.0.0.1', peers = [], db, 
     if (req.method === 'GET' && req.path[0] === 'health') return { status: 200, body: { id, height: node.tip()?.height ?? 0, tip: node.tip()?.hash ?? null, validators: [...node.validators.keys()], harnesses: node.store.harnesses().length } }
     if (req.method === 'GET' && req.path[0] === 'identity') return { status: 200, body: node.card }
     if (req.method === 'POST' && req.path[0] === 'contracts' && req.path.length === 1) {
-      const h = await node.submit(req.body.asc, { challenge: req.body.challenge ?? null })
+      const h = await node.submit(req.body.asc)
       return { status: 201, body: { ascHash: h } }
     }
     if (req.method === 'POST' && req.path[0] === 'harnesses' && req.path.length === 1) {

@@ -11,10 +11,13 @@
  * same five blocks.
  *
  * The harnesses use the SCRIPTED provider (verafyHarness examples/mock-answers.json).
- * There is no model key here, so no model is called.
+ * There is no model key here, so no model is called. Each harness keeps its
+ * Ed25519 key in a PEM file in a temporary directory (core's `loadIdentity`),
+ * deleted when the devnet stops.
  */
 import { spawn } from 'node:child_process'
-import { readFile } from 'node:fs/promises'
+import { readFile, mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -26,6 +29,7 @@ const HARNESSES = ['h-anthropic-1', 'h-openai-1', 'h-google-1', 'h-meta-1', 'h-q
 const EXAMPLES = ['market-resolution', 'fact-check', 'forecast', 'delay-cover', 'fact-check-escalation']
 const verbose = process.argv.includes('--verbose')
 const children = []
+let keys = null
 
 function start(name, file, args) {
   const child = spawn(process.execPath, [file, ...args], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -60,7 +64,8 @@ async function main() {
   const peers = NODES.map(n => n.url).join(',')
   await Promise.all(NODES.map(n => start(n.id, 'packages/node/bin/swarmchain-node.mjs', ['--id', n.id, '--port', String(n.port), '--peers', peers])))
   for (const n of NODES) console.log(`node     ${n.id}  ${n.url}`)
-  await Promise.all(HARNESSES.map(h => start(h.id, 'scripts/harness-process.mjs', ['--id', h.id, '--port', String(h.port), '--nodes', peers])))
+  keys = await mkdtemp(join(tmpdir(), 'swarmchain-devnet-'))
+  await Promise.all(HARNESSES.map(h => start(h.id, 'scripts/harness-process.mjs', ['--id', h.id, '--port', String(h.port), '--nodes', peers, '--identity', join(keys, `${h.id}.pem`)])))
   const cards = await Promise.all(HARNESSES.map(h => get(`http://127.0.0.1:${h.port}/card`)))
   for (const [i, c] of cards.entries()) console.log(`harness  ${c.id.padEnd(14)} ${c.lab.padEnd(10)} ${c.model.padEnd(28)} http://127.0.0.1:${HARNESSES[i].port}`)
 
@@ -99,7 +104,7 @@ async function main() {
     same &&= match
     console.log(`\n  block ${a.height}  sealed by ${a.sealer}  parent ${a.parent.slice(0, 16)}`)
     console.log(`    ${r.asc}: ${r.passed ? `${r.exit}, agreement ${Math.round(r.agreement * 100)}% against a bar of ${Math.round(r.bar * 100)}%` : `below the bar (${Math.round(r.agreement * 100)}% against ${Math.round(r.bar * 100)}%), ${r.exit}: escrow carried, no juror paid`}`)
-    console.log(`    jury ${r.round.jury.join(', ')}; ${r.votes.length} counted votes, ${r.dissent.length} dissent`)
+    console.log(`    jury ${r.round.jury.map(c => c.id).join(', ')}; ${r.votes.length} counted votes, ${r.dissent.length} dissent; sealer account ${r.round.sealer}`)
     for (const [j, n] of NODES.entries()) console.log(`    ${n.id}  ${chains[j][i].hash}`)
     console.log(`    ${match ? 'identical on all three nodes' : 'MISMATCH'}`)
   }
@@ -110,9 +115,12 @@ async function main() {
   return same
 }
 
-const stop = () => { for (const c of children) c.kill('SIGTERM') }
+const stop = async () => {
+  for (const c of children) c.kill('SIGTERM')
+  if (keys) await rm(keys, { recursive: true, force: true })
+}
 main().then(async same => {
-  if (process.argv.includes('--keep')) { console.log('running; ctrl-c to stop'); process.on('SIGINT', () => { stop(); process.exit(same ? 0 : 1) }); return }
-  stop()
+  if (process.argv.includes('--keep')) { console.log('running; ctrl-c to stop'); process.on('SIGINT', async () => { await stop(); process.exit(same ? 0 : 1) }); return }
+  await stop()
   process.exit(same ? 0 : 1)
-}).catch(err => { console.error(err.message); stop(); process.exit(1) })
+}).catch(async err => { console.error(err.message); await stop(); process.exit(1) })

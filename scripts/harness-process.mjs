@@ -8,7 +8,10 @@
  *
  * The harness's lab, model and bond come from verafyHarness's swarm.config.json.
  * Answers come from the SCRIPTED provider (core's mockProvider over
- * verafyHarness's examples/mock-answers.json), because there is no model key here.
+ * verafyHarness's examples/mock-answers.json, keyed per request by contract id
+ * and lab), because there is no model key here. With `--identity <file>` the
+ * harness keeps its Ed25519 key in that PEM file (core's `loadIdentity`), so a
+ * restarted harness is the same harness.
  *
  *   GET  /card      the public card
  *   POST /commit    { asc } -> a signed commitment
@@ -22,13 +25,13 @@ import { parseArgs } from 'node:util'
 import { Harness, mockProvider } from '#core'
 
 const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('verafyharness/package.json'))
-const { values } = parseArgs({ options: { id: { type: 'string' }, port: { type: 'string' }, nodes: { type: 'string', default: '' } } })
+const { values } = parseArgs({ options: { id: { type: 'string' }, port: { type: 'string' }, nodes: { type: 'string', default: '' }, identity: { type: 'string' } } })
 const config = JSON.parse(await readFile(join(HARNESS_ROOT, 'swarm.config.json'), 'utf8'))
 const script = JSON.parse(await readFile(join(HARNESS_ROOT, 'examples', 'mock-answers.json'), 'utf8'))
 const setup = config.pool.find(h => h.id === values.id)
 if (!setup) { console.error(`no harness "${values.id}" in verafyHarness swarm.config.json`); process.exit(2) }
 
-const harness = new Harness({ ...setup, provider: null })
+const harness = new Harness({ ...setup, provider: mockProvider(script), ...(values.identity ? { identityFile: values.identity } : {}) })
 const url = `http://127.0.0.1:${values.port}`
 
 const server = createServer(async (req, res) => {
@@ -39,8 +42,6 @@ const server = createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && req.url === '/card') return reply(200, harness.card)
     if (req.method === 'POST' && req.url === '/commit') {
-      // Core's mockProvider is bound to one contract, so a long-lived harness mounts one per request.
-      harness.provider = mockProvider(script, body.asc.id, harness.lab)
       const c = await harness.commit(body.asc)
       console.log(JSON.stringify({ event: 'commit', harness: harness.id, asc: body.asc.id, commitment: c.commitment }))
       return reply(200, c)

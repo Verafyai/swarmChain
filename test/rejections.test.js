@@ -71,7 +71,8 @@ test('rejects a commitment whose signature does not verify', async () => {
 test('rejects a jury that does not span the contract\'s labs', async () => {
   const { net, sealer, env } = await honest('market-resolution', { harnesses: CONFIG.pool.map(h => h.id) })
   // Five seats from three labs, against a contract that requires five labs.
-  env.round.jury = ['h-anthropic-1', 'h-anthropic-2', 'h-openai-1', 'h-openai-2', 'h-google-1']
+  const cards = sealer.harnessCards()
+  env.round.jury = ['h-anthropic-1', 'h-anthropic-2', 'h-openai-1', 'h-openai-2', 'h-google-1'].map(id => cards.get(id))
   await rejectsEverywhere(net, sealer, reseal(sealer, [env]), 'jury-labs')
 })
 
@@ -82,8 +83,8 @@ test('rejects a jury not drawn from the parent block hash', async () => {
   const rules = example('fact-check').payment.jury
   let other
   for (let i = 0; ; i++) {
-    other = drawJury(cards, rules, `not-the-parent-${i}`).map(h => h.id)
-    if (other.join() !== env.round.jury.join()) break
+    other = drawJury(cards, rules, `not-the-parent-${i}`)
+    if (other.map(h => h.id).join() !== env.round.jury.map(h => h.id).join()) break
   }
   env.round.jury = other
   await rejectsEverywhere(net, sealer, reseal(sealer, [env]), 'jury-draw')
@@ -121,7 +122,7 @@ test('every counted vote is paid, dissent included: rejects a block that skips t
   const dissenter = env.dissent[0].harness
   const i = env.diff.findIndex(d => d.account === `harness:${dissenter}`)
   const [skipped] = env.diff.splice(i, 1)
-  env.diff.find(d => d.account === `harness:${sealer.id}`).delta += skipped.delta
+  env.diff.find(d => d.account === `node:${sealer.id}`).delta += skipped.delta
   assert.equal(conserves(env.diff), true, 'the tampered diff still conserves')
   await rejectsEverywhere(net, sealer, reseal(sealer, [env]), 'pay')
 })
@@ -178,7 +179,41 @@ test('bonds: a harness bonded below the contract\'s value per vote is never draw
   for (const n of net.nodes) n.registerHarness({ card: low.card, url: 'local', signature: low.sign({ card: low.card, url: 'local' }) })
   assert.equal(example('delay-cover').payment.maxValuePerVote, 250)
   const again = await sealer.prepareBlock()
-  assert.ok(!again.rulings[0].round.jury.includes('h-deepseek-low'))
-  env.round.jury[0] = 'h-deepseek-low'
+  assert.ok(!again.rulings[0].round.jury.some(c => c.id === 'h-deepseek-low'))
+  env.round.jury[0] = low.card
   await rejectsEverywhere(net, sealer, reseal(sealer, [env]), 'jury-bond')
+})
+
+test('the sealer is paid as its node, node:<id>, and a round that pays it as a harness is rejected', async () => {
+  const { net, sealer, block, env } = await honest('market-resolution')
+  assert.equal(block.rulings[0].round.sealer, `node:${sealer.id}`)
+  assert.ok(block.rulings[0].diff.some(d => d.account === `node:${sealer.id}` && d.delta > 0))
+  assert.ok(!block.rulings[0].diff.some(d => d.account === `harness:${sealer.id}`))
+  env.round.sealer = `harness:${sealer.id}`
+  for (const d of env.diff) if (d.account === `node:${sealer.id}`) d.account = `harness:${sealer.id}`
+  await rejectsEverywhere(net, sealer, reseal(sealer, [env]), 'pay')
+})
+
+test('a juror that commits and never reveals is not counted, is recorded as a fault, and the block is accepted', async () => {
+  const net = await network()
+  const quiet = net.harnesses.get('h-qwen-1').harness
+  quiet.reveal = () => { throw new Error('offline') }
+  await net.nodes[0].submit(example('market-resolution'))
+  const block = await net.step()
+  const r = block.rulings[0]
+  assert.deepEqual(r.round.faults, [{ harness: 'h-qwen-1', fault: 'no-reveal' }])
+  assert.ok(!r.votes.some(v => v.harness === 'h-qwen-1'))
+  assert.ok(!r.diff.some(d => d.account === 'harness:h-qwen-1'))
+  for (const n of net.nodes) assert.equal(n.tip().hash, block.hash)
+})
+
+test('seal time: a block timed before its parent is rejected', async () => {
+  const net = await network()
+  await net.nodes[0].submit(example('market-resolution'))
+  await net.step()
+  await net.nodes[0].submit(example('fact-check'))
+  const sealer = net.sealer()
+  const block = await sealer.prepareBlock()
+  const early = seal(sealer.tip(), block.rulings, sealer.signer, { time: new Date(Date.parse(sealer.tip().time) - 1000).toISOString() })
+  for (const n of net.nodes) await assert.rejects(n.accept(early), err => err.code === 'time')
 })

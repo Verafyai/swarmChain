@@ -1,7 +1,8 @@
 /**
  * The block store: SQLite through `node:sqlite`. Blocks, rulings and reviews are
  * append-only, enforced by triggers, so a ruling is never edited or erased. A
- * challenge appends a review row: affirm, overturn or supersede.
+ * challenge appends a review row (core's `swarm.review/0` record): affirm,
+ * overturn or supersede.
  *
  * The mempool and harness registry live in the same database but are node
  * state, not chain state, and may change.
@@ -33,13 +34,13 @@ CREATE TABLE IF NOT EXISTS reviews (
   result TEXT NOT NULL CHECK (result IN ('affirm', 'overturn', 'supersede')),
   by_ruling TEXT NOT NULL REFERENCES rulings(id),
   grounds TEXT NOT NULL,
-  height INTEGER NOT NULL
+  height INTEGER NOT NULL,
+  json TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS contracts (
   asc_hash TEXT PRIMARY KEY,
   asc_id TEXT NOT NULL,
   json TEXT NOT NULL,
-  challenge TEXT,
   escrow REAL NOT NULL,
   status TEXT NOT NULL,
   carried REAL NOT NULL DEFAULT 0,
@@ -93,7 +94,7 @@ export class BlockStore {
    * Append a verified block, its rulings and any reviews in one transaction.
    * @param {object} block - the block.
    * @param {{id: string, ruling: object}[]} rulings - ruling ids with their envelopes.
-   * @param {{ruling: string, result: string, byRuling: string, grounds: string}[]} reviews - reviews to append.
+   * @param {object[]} reviews - core review records (`resolveChallenge`) to append.
    * @param {(store: BlockStore) => void} [also] - more writes inside the same transaction.
    */
   append(block, rulings, reviews, also) {
@@ -104,7 +105,7 @@ export class BlockStore {
         this.db.prepare('INSERT INTO rulings (id, block_hash, height, idx, asc_hash, json) VALUES (?, ?, ?, ?, ?, ?)').run(id, block.hash, block.height, i, ruling.ascHash, JSON.stringify(ruling))
       })
       for (const r of reviews) {
-        this.db.prepare('INSERT INTO reviews (ruling, result, by_ruling, grounds, height) VALUES (?, ?, ?, ?, ?)').run(r.ruling, r.result, r.byRuling, r.grounds, block.height)
+        this.db.prepare('INSERT INTO reviews (ruling, result, by_ruling, grounds, height, json) VALUES (?, ?, ?, ?, ?, ?)').run(r.ruling, r.result, r.by, r.grounds, block.height, JSON.stringify(r))
       }
       also?.(this)
       this.db.exec('COMMIT')
@@ -131,11 +132,11 @@ export class BlockStore {
 
   /**
    * @param {string} id - a ruling id.
-   * @returns {{result: string, byRuling: string, grounds: string, height: number}[]} its review history, oldest first.
+   * @returns {object[]} its review log, oldest first: core review records, each with the height that sealed it.
    */
   reviews(id) {
-    return this.db.prepare('SELECT result, by_ruling, grounds, height FROM reviews WHERE ruling = ? ORDER BY seq').all(id)
-      .map(r => ({ result: r.result, byRuling: r.by_ruling, grounds: r.grounds, height: r.height }))
+    return this.db.prepare('SELECT json, height FROM reviews WHERE ruling = ? ORDER BY seq').all(id)
+      .map(r => ({ ...JSON.parse(r.json), height: r.height }))
   }
 
   // Mempool and registry: node state, mutable.
@@ -157,13 +158,12 @@ export class BlockStore {
   /**
    * Add a contract to the mempool.
    * @param {string} h - asc hash.
-   * @param {object} asc - the contract without context bytes.
-   * @param {object | null} challenge - challenge details, if this contract reviews a ruling.
+   * @param {object} asc - the contract without context bytes. A challenge carries its own `review`.
    */
-  addContract(h, asc, challenge) {
+  addContract(h, asc) {
     const seq = Number(this.db.prepare('SELECT COUNT(*) AS n FROM contracts').get().n)
-    this.db.prepare('INSERT INTO contracts (asc_hash, asc_id, json, challenge, escrow, status, seq) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(h, asc.id, JSON.stringify(asc), challenge ? JSON.stringify(challenge) : null, asc.payment.escrow, 'pending', seq)
+    this.db.prepare('INSERT INTO contracts (asc_hash, asc_id, json, escrow, status, seq) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(h, asc.id, JSON.stringify(asc), asc.payment.escrow, 'pending', seq)
   }
 
   /**
@@ -193,7 +193,6 @@ function rowToContract(row) {
     ascHash: row.asc_hash,
     id: row.asc_id,
     asc: JSON.parse(row.json),
-    challenge: row.challenge ? JSON.parse(row.challenge) : null,
     escrow: row.escrow,
     status: row.status,
     carried: row.carried,

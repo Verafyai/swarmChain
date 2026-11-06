@@ -1,11 +1,11 @@
 // The chain end to end in one process: three nodes, five harnesses, local gossip.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { canonical, sha256 } from '#core'
-import { network, example, SCRIPT } from './helpers.js'
+import { canonical, sha256, challengeContract, resolveChallenge } from '#core'
+import { network, example, reseal, SCRIPT, FIVE_LABS, SECOND_FIVE } from './helpers.js'
 import { readApi, accounts } from '../packages/api/src/index.js'
 import { ContextStore } from '../packages/storage/src/index.js'
-import { BlockStore } from '../packages/node/src/index.js'
+import { BlockStore, rulingId } from '../packages/node/src/index.js'
 
 const EXAMPLES = ['market-resolution', 'fact-check', 'forecast', 'delay-cover', 'fact-check-escalation']
 
@@ -30,6 +30,8 @@ test('five contracts make five blocks, identical on all three nodes, with the se
 test('juries are seeded by the parent block hash', async () => {
   const net = await fiveBlocks()
   for (const b of net.nodes[0].store.blocks()) assert.equal(b.rulings[0].round.seed, b.parent)
+  const tips = net.nodes.map(n => n.store.blocks().map(b => b.time))
+  for (const t of tips[0].slice(1).map((x, i) => [tips[0][i], x])) assert.ok(Date.parse(t[1]) > Date.parse(t[0]), 'seal times increase')
 })
 
 test('below the bar: no juror is paid and the whole escrow carries to the escalated jury', async () => {
@@ -84,7 +86,7 @@ test('gossip: a reveal that does not match the gossiped commitment is refused', 
   await assert.rejects(net.nodes[2].handleGossip('reveal', { ascHash: env.ascHash, reveal: r }), /does not match its commitment/)
   const other = structuredClone(env.round.commits[0])
   other.commitment = sha256('another vote')
-  await assert.rejects(net.nodes[2].handleGossip('commit', { ascHash: env.ascHash, commit: other }), /signature does not verify|equivocated/)
+  await assert.rejects(net.nodes[2].handleGossip('commit', { ascHash: env.ascHash, commit: other }), /does not verify|equivocated/)
 })
 
 test('gossip: a contract travels without its context bytes, and peers fetch them by hash', async () => {
@@ -98,71 +100,96 @@ test('gossip: a contract travels without its context bytes, and peers fetch them
   }
 })
 
-// Challenges: a later jury reviews a sealed ruling. The original never changes;
-// the review is appended.
-function challengeContract(original, id, extra) {
-  return {
-    ...original,
-    id,
-    title: `Challenge: ${original.title}`,
-    context: [...original.context, { kind: 'text', content: extra, sha256: sha256(extra) }],
-  }
-}
+// Challenges: a later jury reviews a sealed ruling. A challenge is core's
+// `challengeContract`; its ruling appends core's `resolveChallenge` review. The
+// original never changes.
+const CHALLENGE_POOL = { harnesses: [...FIVE_LABS, ...SECOND_FIVE.map(h => h.id)], extra: SECOND_FIVE }
+const market = example('market-resolution')
+const answers = vote => Object.fromEntries(Object.keys(SCRIPT[market.id]).map(lab => [lab, { answer: vote, confidence: 0.9, reasoning: `Scripted ${vote}.` }]))
+const evidence = text => [{ kind: 'text', label: 'new evidence', content: text }]
 
-test('challenges append affirm, overturn and supersede; the original ruling is never edited', async () => {
-  const market = example('market-resolution')
-  const answers = vote => Object.fromEntries(Object.keys(SCRIPT[market.id]).map(lab => [lab, { answer: vote, confidence: 0.9, reasoning: `Scripted ${vote}.`, sources: ['c3'] }]))
-  const script = { ...SCRIPT, 'challenge-affirm': answers('NO'), 'challenge-overturn': answers('YES'), 'challenge-supersede': answers('YES'), 'challenge-split': { ...answers('YES'), anthropic: { answer: 'NO', confidence: 0.9, reasoning: 'No.' }, openai: { answer: 'UNCLEAR', confidence: 0.9, reasoning: 'Unclear.' } } }
-  const net = await network({ script })
+async function sealedMarket(script) {
+  const net = await network({ ...CHALLENGE_POOL, script: { ...SCRIPT, ...script } })
   await net.nodes[0].submit(market)
   const first = await net.step()
-  const rulingId = sha256(first.rulings[0])
-  const before = canonical(net.nodes[0].store.ruling(rulingId))
+  return { net, original: first.rulings[0], id: rulingId(first.rulings[0]) }
+}
 
+test('a challenge block that overturns: the review rides under the reviews root, every node appends it, the original is unchanged', async () => {
+  const { net, original, id } = await sealedMarket({ 'challenge-overturn': answers('YES') })
+  assert.equal(original.answer, 'NO')
+  const before = canonical(net.nodes[0].store.ruling(id))
+  const asc = challengeContract(market, original, { grounds: 'false-evidence', evidence: evidence('The roll call was forged.'), excludeLabs: [], id: 'challenge-overturn' })
+  assert.equal(asc.review.kind, 'swarm.challenge/0')
+  await net.nodes[1].submit(asc)
+  const block = await net.step()
+  assert.ok(block, 'challenge sealed')
+  const ruling = block.rulings[0]
+  assert.equal(ruling.answer, 'YES')
+  assert.ok(ruling.round.jury.every(c => !original.round.jury.some(o => o.id === c.id)), 'no original juror sits on the challenge jury')
+  assert.equal(block.reviews.length, 1)
+  assert.deepEqual(block.reviews[0], resolveChallenge(asc, ruling, original))
+  assert.equal(block.reviews[0].result, 'overturn')
+  assert.equal(block.reviewsRoot, sha256(block.reviews.map(r => sha256(r)).join('')))
+  for (const n of net.nodes) {
+    assert.equal(n.tip().hash, block.hash)
+    assert.deepEqual(n.store.reviews(id).map(r => [r.result, r.by]), [['overturn', rulingId(ruling)]])
+    assert.equal(canonical(n.store.ruling(id)), before, 'original ruling unchanged')
+    const got = readApi(n.store)({ method: 'GET', path: ['rulings', id], query: new URLSearchParams() }).body
+    assert.equal(got.review.status, 'overturned')
+  }
+})
+
+test('challenges append affirm, overturn and supersede; below the bar the original stands; the original ruling is never edited', async () => {
+  const split = { ...answers('YES'), anthropic: { answer: 'NO', confidence: 0.9, reasoning: 'No.' }, openai: { answer: 'UNCLEAR', confidence: 0.9, reasoning: 'Unclear.' } }
+  const { net, original, id } = await sealedMarket({ 'challenge-affirm': answers('NO'), 'challenge-overturn': answers('YES'), 'challenge-supersede': answers('YES'), 'challenge-split': split })
+  const before = canonical(net.nodes[0].store.ruling(id))
   const cases = [
-    ['challenge-affirm', 'new-evidence', 'affirm'],
-    ['challenge-overturn', 'false-evidence', 'overturn'],
-    ['challenge-split', 'error', null],
-    ['challenge-supersede', 'changed-rules', 'supersede'],
+    ['challenge-affirm', 'new-evidence', { evidence: evidence('A second count agrees.') }],
+    ['challenge-overturn', 'false-evidence', { evidence: evidence('The roll call was forged.') }],
+    ['challenge-split', 'error', {}],
+    ['challenge-supersede', 'changed-rules', { context: [...market.context, { kind: 'policy', content: 'Rules as amended.' }].map(c => ({ ...c, sha256: c.sha256 ?? sha256(c.content) })) }],
   ]
-  for (const [id, grounds] of cases) {
-    await net.nodes[1].submit(challengeContract(market, id, `New material for ${id}.`), { challenge: { ruling: rulingId, grounds } })
-    const block = await net.step()
-    assert.ok(block, `${id} sealed`)
+  for (const [cid, grounds, extra] of cases) {
+    await net.nodes[1].submit(challengeContract(market, original, { grounds, excludeLabs: [], id: cid, ...extra }))
+    assert.ok(await net.step(), `${cid} sealed`)
   }
   for (const n of net.nodes) {
-    assert.deepEqual(n.store.reviews(rulingId).map(r => [r.result, r.grounds]), [['affirm', 'new-evidence'], ['overturn', 'false-evidence'], ['supersede', 'changed-rules']])
-    assert.equal(canonical(n.store.ruling(rulingId)), before, 'original ruling unchanged')
+    assert.deepEqual(n.store.reviews(id).map(r => [r.result, r.grounds]), [['affirm', 'new-evidence'], ['overturn', 'false-evidence'], ['supersede', 'changed-rules']])
+    assert.equal(canonical(n.store.ruling(id)), before, 'original ruling unchanged')
     assert.throws(() => n.store.db.exec("UPDATE reviews SET result = 'affirm'"), /append-only/)
     assert.throws(() => n.store.db.exec('DELETE FROM reviews'), /append-only/)
-    const api = readApi(n.store)
-    const got = api({ method: 'GET', path: ['rulings', rulingId], query: new URLSearchParams() }).body
+    const got = readApi(n.store)({ method: 'GET', path: ['rulings', id], query: new URLSearchParams() }).body
     assert.equal(got.review.status, 'superseded')
     assert.equal(got.review.reviewCount, 3)
     assert.equal(got.reviews.length, 3)
   }
 })
 
-test('a challenge block that misstates its review result is rejected', async () => {
-  const market = example('market-resolution')
-  const answers = Object.fromEntries(Object.keys(SCRIPT[market.id]).map(lab => [lab, { answer: 'YES', confidence: 0.9, reasoning: 'Scripted.' }]))
-  const net = await network({ script: { ...SCRIPT, 'challenge-x': answers } })
-  await net.nodes[0].submit(market)
-  const first = await net.step()
-  await net.nodes[0].submit(challengeContract(market, 'challenge-x', 'Forged roll call found.'), { challenge: { ruling: sha256(first.rulings[0]), grounds: 'false-evidence' } })
+test('a challenge block that misstates or drops its review is rejected', async () => {
+  const { net, original } = await sealedMarket({ 'challenge-x': answers('YES') })
+  await net.nodes[0].submit(challengeContract(market, original, { grounds: 'false-evidence', evidence: evidence('Forged roll call found.'), excludeLabs: [], id: 'challenge-x' }))
   const sealer = net.sealer()
   const block = await sealer.prepareBlock()
-  const env = structuredClone(block.rulings[0])
-  assert.equal(env.review.result, 'overturn')
-  env.review.result = 'affirm'
-  const { reseal } = await import('./helpers.js')
-  for (const n of net.nodes) await assert.rejects(n.accept(reseal(sealer, [env])), err => err.code === 'review')
+  const reviews = structuredClone(block.reviews)
+  assert.equal(reviews[0].result, 'overturn')
+  reviews[0].result = 'affirm'
+  for (const n of net.nodes) await assert.rejects(n.accept(reseal(sealer, block.rulings, reviews)), err => err.code === 'review')
+  for (const n of net.nodes) await assert.rejects(n.accept(reseal(sealer, block.rulings, [])), err => err.code === 'review')
+  const unrooted = { ...block, reviews: [...block.reviews, block.reviews[0]] }
+  for (const n of net.nodes) await assert.rejects(n.accept(unrooted), err => err.code === 'review')
 })
 
-test('a challenge must name a ruling that is on chain and declared grounds', async () => {
-  const net = await network()
-  await assert.rejects(net.nodes[0].submit(example('fact-check'), { challenge: { ruling: sha256('nothing'), grounds: 'error' } }), /not on chain/)
-  await assert.rejects(net.nodes[0].submit(example('fact-check'), { challenge: { ruling: sha256('nothing'), grounds: 'vibes' } }), /unknown grounds/)
+test('a challenge must name a ruling that is on chain, state declared grounds, and keep the original jurors off its jury', async () => {
+  const net = await network(CHALLENGE_POOL)
+  const fc = example('fact-check')
+  const review = { kind: 'swarm.challenge/0', ruling: sha256('nothing'), ascHash: sha256('no contract'), grounds: 'error' }
+  await assert.rejects(net.nodes[0].submit({ ...fc, review }), /not on chain/)
+  await assert.rejects(net.nodes[0].submit({ ...fc, review: { ...review, grounds: 'vibes' } }), /grounds/)
+  const { net: chain, original } = await sealedMarket({ 'challenge-reuse': answers('YES') })
+  const asc = challengeContract(market, original, { grounds: 'error', excludeLabs: [], id: 'challenge-reuse' })
+  const reused = { ...asc, payment: { ...asc.payment, jury: { ...asc.payment.jury, excludeHarnesses: [] } } }
+  await assert.rejects(chain.nodes[0].submit(reused), /exclude the original jurors/)
 })
 
 test('storage: serves context by hash through the window, refuses wrong bytes, prunes after', () => {

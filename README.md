@@ -33,7 +33,7 @@ There is no token and no need for one. Escrow stays on the chain where the reque
 packages/node/            mempool, jury coordination, sealer rotation, block store (node:sqlite)
   src/node.js             ChainNode: submit, prepareBlock, sealNext, accept, handleGossip
   src/verify.js           verifyBlock: every rule above, in order
-  src/jury.js             replay jurors for core's rule(); HTTP and in-process juror clients
+  src/jury.js             HTTP and in-process juror clients
   src/store.js            SQLite schema with append-only triggers
   src/server.js           HTTP: gossip, storage, read API, explorer, submit, register
   bin/swarmchain-node.mjs start one node
@@ -41,7 +41,7 @@ packages/gossip/          commit, reveal, contract and block messages over HTTP
 packages/storage/         availability layer: context by sha256 through the challenge window
 packages/api/             the read API
 packages/explorer/        a static page that reads the API
-packages/bridge-solana/   milestone 5 stub: trigger message and quorum check
+packages/bridge-solana/   milestone 5 stub: checks core's swarm.trigger/0 quorum against the chain
 scripts/devnet.mjs        three nodes, five harnesses, five contracts, five blocks
 scripts/harness-process.mjs  a core Harness served over HTTP; stand-in for the verafyHarness daemon
 test/                     node:test suite
@@ -95,7 +95,7 @@ Every module here imports `#core`. To develop against a local verafyHarness chec
      |                     |<--------------- reveal -----------------|
      |                     | gossip reveal; every node checks it     |
      |                     | against the commitment it saw           |
-     |                     | core rule() from the recorded messages  |
+     |                     | core ruleFromRecords() from the record  |
      |                     | core seal(); verify own block; gossip   |
      |                     |                                         |
      |      every other node: verify the block with core, append     |
@@ -103,9 +103,9 @@ Every module here imports `#core`. To develop against a local verafyHarness chec
 
 1. **Mempool.** A contract enters only if `validate` passes and every context pin matches its bytes (`loadContext`). Bytes go to the availability layer; the contract is stored and gossiped as hashes. Peers fetch the bytes by hash from the node that has them and check each hash.
 2. **Sealer rotation.** Validators take turns by height, in id order. Only the node whose turn it is may seal, and only when a contract is waiting. No contract, no block.
-3. **Jury.** `drawJury` from core, from harnesses whose bond covers the contract's value per vote, seeded by the parent block hash.
+3. **Jury.** Core's `drawJuryFor`, which applies the contract's bond floor (`maxValuePerVote`) and exclusions, seeded by the parent block hash.
 4. **Commit, then reveal.** The reveal round opens only after the commit round closes. Every node checks each gossiped commitment's signature, and each reveal against the commitment it saw.
-5. **Rule and seal.** Core's `rule` runs over the recorded commitments and reveals, then core's `seal` links the block to its parent. The sealer verifies its own block exactly as every peer will.
+5. **Rule and seal.** Core's `ruleFromRecords` rules from the recorded commitments and reveals, with the sealer paid as `node:<id>`; a juror that did not commit or reveal is not counted and is listed in the round's `faults`. The ruling carries its `round` (seed, jury cards, commitments, reveals, faults, sealer account). Core's `seal` links the block to its parent with the time the sealer passes in (its clock, always after the parent's time), and with any challenge reviews under a `reviewsRoot`. The sealer verifies its own block exactly as every peer will.
 
 ## What every node checks on every block
 
@@ -113,21 +113,22 @@ Every module here imports `#core`. To develop against a local verafyHarness chec
 |---|---|---|
 | A block exists only when a jury rules | at least one ruling | `empty` |
 | Proofs stay off chain | no `proof` or `proofs` field anywhere | `proof-on-chain` |
-| Linked, hashed, signed by the right sealer | height, parent, `sha256(header)`, rotation, Ed25519 | `link`, `hash`, `sealer` |
+| Linked, hashed, signed by the right sealer | height, parent, `sha256(blockHeader(block))`, rotation, Ed25519 | `link`, `hash`, `sealer` |
+| Time moves forward | after the parent's time, and no more than 60 s ahead of the verifier's clock | `time` |
 | Rulings root | recomputed from the rulings | `root` |
 | Context is evidence | every pin matches bytes the node holds, and the ruling cites exactly the pinned hashes | `context` |
-| Juries span labs | distinct labs at least `minLabs` | `jury-labs` |
-| Bonds cover the vote | every juror's bond at least `maxValuePerVote` | `jury-bond` |
-| Draw seeded by parent hash | seed is the parent hash and the jury is core's draw from it | `jury-draw` |
-| Commitments are genuine | signed by the registered key, for this contract | `commit`, `commit-equivocation` |
-| Reveals match commitments | core `checkReveal` and signature | `reveal-mismatch` |
+| Juries span labs | every juror's card matches its registration; distinct labs at least `minLabs` | `jury-unknown`, `jury-labs` |
+| Bonds cover the vote | core `eligibleJurors`: bond at least `maxValuePerVote`, no excluded lab or harness | `jury-bond` |
+| Draw seeded by parent hash | seed is the parent hash and the jury is core's `drawJuryFor` from it | `jury-draw` |
+| Commitments are genuine | core `checkCommit`: signed by the registered key, for this contract | `commit`, `commit-equivocation` |
+| Reveals match commitments | core `checkRevealRecord`: salt, commitment and signature | `reveal-mismatch` |
 | Exits are declared | the exit and every vote are declared outcomes; below the bar takes `*below-bar` | `exit-undeclared` |
 | Diffs conserve | core `conserves` | `diff-conserve` |
-| Pay every counted vote | every counted vote paid the same, dissent included; below the bar nobody is paid and the whole escrow carries to the escalated jury | `pay` |
-| Core agrees | core `rule` re-run from the recorded messages gives the identical ruling | `replay` |
-| Rulings are never erased | a challenge's review result is what the rulings SIMD says it must be | `review` |
+| Pay every counted vote | the sealer account is `node:<sealer>`; core `checkPay`: every counted vote paid the same, dissent included; below the bar nobody is paid and the whole escrow carries to the escalated jury | `pay` |
+| Core agrees | core `verifyRuling(asc, ruling, {cards, pool, seed})` re-runs the ruling from its round and finds no problem | `replay` |
+| Rulings are never erased | a challenge names a sealed ruling that cleared the bar and keeps its jurors off the challenge jury; the block's reviews are exactly core's `resolveChallenge`, appendable by `appendReview`, under the `reviewsRoot` | `review` |
 
-Blocks, rulings and reviews are append-only in SQLite: triggers abort any `UPDATE` or `DELETE`. A challenge is a new contract that names a sealed ruling and its grounds (`new-evidence`, `false-evidence`, `error`, `changed-rules`). Its ruling appends `affirm`, `overturn` or `supersede` to the original's review history; below the bar, the original stands and nothing is appended.
+Blocks, rulings and reviews are append-only in SQLite: triggers abort any `UPDATE` or `DELETE`. A challenge is a new contract in core's `challengeContract` format (`review.kind` is `swarm.challenge/0`): it names a sealed ruling and its grounds (`new-evidence`, `false-evidence`, `error`, `changed-rules`), and pins the prior ruling and the new evidence as context. Its ruling appends a `swarm.review/0` record, `affirm`, `overturn` or `supersede`, to the original's review history; below the bar, the original stands and nothing is appended.
 
 ## Read API
 
