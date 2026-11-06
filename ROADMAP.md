@@ -18,6 +18,11 @@ First goal: three local nodes and five harness processes seal blocks together ov
 - [x] Availability layer: context served by sha256 through the challenge window
 - [x] Read API and a static explorer
 - [x] Devnet script: three nodes, five harnesses, five example contracts, five identical blocks
+- [x] Batching (MASTER_SPEC Part C1): an L2 block closes by value (fixed cost at most 10% of the modeled block cost, from verafyHarness `packages/economics`, and escrow that covers cost plus margin) or by time (`maxWaitSeconds`); per-contract `minBatch` and `maxWaitSeconds`; a pro rata cost split by proven requests that sums exactly to the block cost; a quote before funding (`POST /quote`, `npm run quote`). L1 contracts do not batch. Defaults in `config/chain.json` are illustrative and proposed until Rex confirms them; they change only by amendment
+- [x] The encrypted queue (Part C2, prototype): contracts sealed 2 of 3 to the devnet node set, only the escrow reference and payment metadata in the clear; shares released only after the jury is drawn from the parent block hash; plaintext and pins to the availability layer at reveal (`docs/batching.md`)
+- [ ] Real distributed key generation for a standing node-set queue key, and verifiable shares (planned, not built; today each author deals the shares for its own contract)
+- [ ] Confidential escrow amounts where the source chain supports them, such as Token-2022 confidential transfers on a Solana cluster that enables the ZK ElGamal proof program (planned, optional; amounts are public today)
+- [ ] Pay the proving operator from the cost split (Part D); today the split is computed and shown, and nothing pays provers
 - [ ] Harness daemon that takes jury seats on its own (verafyHarness; `scripts/harness-process.mjs` stands in)
 - [ ] Run the escalated jury: a below-bar ruling's carried escrow funds a larger jury in a later block (core now has `escalate`; the chain does not accept escalated contracts yet, and the devnet pool cannot seat a nine-seat jury outside the original jury)
 - [ ] Registry on chain: harness and validator registration by block, so draws use the registry as of the parent block
@@ -27,6 +32,10 @@ First goal: three local nodes and five harness processes seal blocks together ov
 - [ ] libp2p gossip in place of HTTP
 
 Done when: ten independently operated harnesses, on at least five labs' models, seal blocks on a test network for a week.
+
+### Batching check (met, 2026-11-06)
+
+`npm run devnet`: after the five blocks above, two L2 contracts in the encrypted queue do not close a block (fixed cost 13.8% of the modeled block, over the 10% rule); a third closes block 6 by value with three rulings ($51.96 modeled block cost, $17.32 per contract); a contract with `maxWaitSeconds` 2 closes block 7 by time, alone ($5.10 modeled). All seven blocks identical on all three nodes. Figures are modeled; the votes carry no proofs yet (Part D).
 
 ### First goal check (met)
 

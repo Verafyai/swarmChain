@@ -1,7 +1,9 @@
 /**
- * Gossip between nodes over HTTP. Four message types travel:
+ * Gossip between nodes over HTTP. Six message types travel:
  *
  *   contract   a funded contract entering the mempool, without its context bytes
+ *   sealed     a contract entering the encrypted queue, sealed t of n to the nodes
+ *   queue-open a queued contract's key, released after its jury was drawn
  *   commit     a juror's signed commitment to a hidden vote
  *   reveal     a juror's signed reveal of that vote
  *   block      a sealed block
@@ -13,7 +15,7 @@
  */
 import { sha256 } from '#core'
 
-export const MESSAGE_TYPES = ['contract', 'commit', 'reveal', 'block']
+export const MESSAGE_TYPES = ['contract', 'sealed', 'queue-open', 'commit', 'reveal', 'block']
 
 export class Gossip {
   /**

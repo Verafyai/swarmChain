@@ -47,6 +47,15 @@ CREATE TABLE IF NOT EXISTS contracts (
   ruled_in TEXT,
   seq INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS queue (
+  queue_id TEXT PRIMARY KEY,
+  json TEXT NOT NULL,
+  escrow REAL NOT NULL,
+  status TEXT NOT NULL,
+  received_at INTEGER NOT NULL,
+  asc_hash TEXT,
+  seq INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS harnesses (
   id TEXT PRIMARY KEY,
   json TEXT NOT NULL
@@ -177,6 +186,50 @@ export class BlockStore {
     this.db.prepare('UPDATE contracts SET status = ?, ruled_in = ?, carried = ? WHERE asc_hash = ?').run(status, blockHash, carried, h)
   }
 
+  // The encrypted queue: sealed envelopes (core's `verafy.sealed/1`) waiting for a block.
+  // Node state, like the mempool. Status: queued, then opened once its shares are released.
+
+  /**
+   * Queue a sealed envelope.
+   * @param {string} id - the envelope's queue id.
+   * @param {object} env - the envelope.
+   * @param {number} receivedAt - when this node first saw it, in ms.
+   */
+  addSealed(id, env, receivedAt) {
+    const seq = Number(this.db.prepare('SELECT COUNT(*) AS n FROM queue').get().n)
+    this.db.prepare('INSERT INTO queue (queue_id, json, escrow, status, received_at, seq) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(id, JSON.stringify(env), env.meta.escrow, 'queued', receivedAt, seq)
+  }
+
+  /**
+   * @param {string} id - a queue id.
+   * @returns {{id: string, env: object, meta: object, status: string, receivedAt: number, ascHash: string | null} | null} the entry.
+   */
+  sealed(id) {
+    const row = this.db.prepare('SELECT * FROM queue WHERE queue_id = ?').get(id)
+    return row ? rowToSealed(row) : null
+  }
+
+  /**
+   * @param {string} [status] - only entries with this status.
+   * @returns {object[]} queue entries, oldest first.
+   */
+  queue(status) {
+    const rows = status
+      ? this.db.prepare('SELECT * FROM queue WHERE status = ? ORDER BY seq').all(status)
+      : this.db.prepare('SELECT * FROM queue ORDER BY seq').all()
+    return rows.map(rowToSealed)
+  }
+
+  /**
+   * Mark a queued envelope opened, with the hash of the contract inside it.
+   * @param {string} id - the queue id.
+   * @param {string} ascHash - the opened contract's hash.
+   */
+  openSealed(id, ascHash) {
+    this.db.prepare("UPDATE queue SET status = 'opened', asc_hash = ? WHERE queue_id = ?").run(ascHash, id)
+  }
+
   /** @param {object} entry - a signed harness registration. */
   putHarness(entry) {
     this.db.prepare('INSERT INTO harnesses (id, json) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json').run(entry.card.id, JSON.stringify(entry))
@@ -198,4 +251,9 @@ function rowToContract(row) {
     carried: row.carried,
     ruledIn: row.ruled_in,
   }
+}
+
+function rowToSealed(row) {
+  const env = JSON.parse(row.json)
+  return { id: row.queue_id, env, meta: env.meta, status: row.status, receivedAt: Number(row.received_at), ascHash: row.asc_hash ?? null }
 }

@@ -40,7 +40,7 @@ export const SECOND_FIVE = CONFIG.pool.slice(0, 5).map(h => ({ ...h, id: `${h.id
  *   node count, harness ids, scripted answers, and setups for harnesses not in verafyHarness's pool.
  * @returns {Promise<object>} nodes, harnesses, and helpers.
  */
-export async function network({ nodes = 3, harnesses = FIVE_LABS, script = SCRIPT, extra = [] } = {}) {
+export async function network({ nodes = 3, harnesses = FIVE_LABS, script = SCRIPT, extra = [], clock } = {}) {
   const hs = new Map()
   for (const id of harnesses) {
     const setup = CONFIG.pool.find(h => h.id === id) ?? extra.find(h => h.id === id)
@@ -53,11 +53,19 @@ export async function network({ nodes = 3, harnesses = FIVE_LABS, script = SCRIP
     throw new Error(`context ${h} is not available`)
   }
   for (let i = 1; i <= nodes; i++) {
-    const node = new ChainNode({ id: `node-${i}`, jurors: localJurorClient(hs), fetchContent })
+    const node = new ChainNode({ id: `node-${i}`, jurors: localJurorClient(hs), fetchContent, ...(clock ? { now: () => clock.now } : {}) })
     node.gossip = bus.join(node)
     list.push(node)
   }
   for (const a of list) for (const b of list) if (a !== b) a.addValidator(b.card)
+  // Share requests go straight to every other node's releaseShare, which checks the draw.
+  for (const a of list) {
+    a.peers = {
+      requestShares: async draw => list.filter(b => b !== a).map(b => {
+        try { return { peer: b.id, ok: true, shares: b.releaseShare(draw) } } catch (err) { return { peer: b.id, ok: false, error: err.message } }
+      }),
+    }
+  }
   for (const n of list) for (const { harness } of hs.values()) n.registerHarness({ card: harness.card, url: 'local', signature: harness.sign({ card: harness.card, url: 'local' }) })
 
   const byId = id => list.find(n => n.id === id)

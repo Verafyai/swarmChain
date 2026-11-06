@@ -7,14 +7,16 @@
   "license": "MIT",
   "engines": { "node": ">=22.13" },
   "imports": {
-    "#core": "verafyharness/packages/core/src/index.js"
+    "#core": "verafyharness/packages/core/src/index.js",
+    "#economics": "verafyharness/packages/economics/src/index.js"
   },
   "scripts": {
     "test": "node --test test/",
     "devnet": "node scripts/devnet.mjs",
-    "node": "node packages/node/bin/swarmchain-node.mjs"
+    "node": "node packages/node/bin/swarmchain-node.mjs",
+    "quote": "node scripts/quote.mjs"
   },
   "dependencies": {
-    "verafyharness": "github:Verafyai/verafyHarness#d6b18d8"
+    "verafyharness": "github:Verafyai/verafyHarness#82d8345"
   }
 }

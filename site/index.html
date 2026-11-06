@@ -606,6 +606,9 @@ td.k{color:var(--mute)}
         <li>Small proofs of inference would close that gap.</li>
       </ul></div>
     </div>
+    <h3>When a proven block closes, and who can read the queue</h3>
+    <p>An L1 contract seals as soon as a jury rules. An L2 contract, whose votes carry proofs of inference, waits in a queue, because one proof is cheap (about a cent of GPU time, modeled) and what makes a small block uneconomic is fixed cost: warm-up and idle GPU hours. The block closes when the queue is big enough that warm-up is at most 10% of its modeled cost and the escrow covers that cost plus margin, or when a contract has waited its maximum (3,600 s by default). Both defaults are illustrative and proposed; they change only by amendment. The cost is split pro rata by proven requests, and the author sees a quote before funding. Prototype on the devnet: built and tested.</p>
+    <p>While a contract waits, it is sealed 2 of 3 (devnet) to the node set: only its escrow reference and payment metadata are readable. Nodes release their decryption shares only after the jury is drawn from the parent block hash, and the plaintext and its pins go to the availability layer at reveal. Two limits: the proving machine sees the plaintext it proves, so encryption protects the queue, not the prover; and the escrow stays on its source chain, where the amount is public unless that chain supports confidential amounts. Real distributed key generation is planned, not built. <a href="https://github.com/Verafyai/verafyChain/blob/main/docs/batching.md">How batching and the encrypted queue work</a></p>
   </div>
 </section>
 

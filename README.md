@@ -33,6 +33,7 @@ There is no token and no need for one. Escrow stays on the chain where the reque
 packages/node/            mempool, jury coordination, sealer rotation, block store (node:sqlite)
   src/node.js             ChainNode: submit, prepareBlock, sealNext, accept, handleGossip
   src/verify.js           verifyBlock: every rule above, in order
+  src/batch.js            when an L2 block closes (value or time), the pro rata cost split, the quote
   src/jury.js             HTTP and in-process juror clients
   src/store.js            SQLite schema with append-only triggers
   src/server.js           HTTP: gossip, storage, read API, explorer, submit, register
@@ -42,7 +43,10 @@ packages/storage/         availability layer: context by sha256 through the chal
 packages/api/             the read API
 packages/explorer/        a static page that reads the API
 packages/bridge-solana/   milestone 5 stub: checks core's trigger quorum against the chain
-scripts/devnet.mjs        three nodes, five harnesses, five contracts, five blocks
+config/chain.json         chain parameters: batching and queue defaults (illustrative, proposed; change only by amendment)
+docs/batching.md          batching and the encrypted queue: rules, defaults, what is and is not hidden
+scripts/devnet.mjs        three nodes, five harnesses, five contracts, five blocks, then two blocks from the encrypted queue
+scripts/quote.mjs         npm run quote: a contract's modeled share of a proven block, before funding
 scripts/harness-process.mjs  a core Harness served over HTTP; stand-in for the verafyHarness daemon
 test/                     node:test suite
 ```
@@ -107,6 +111,8 @@ Every module here imports `#core`. To develop against a local verafyHarness chec
 4. **Commit, then reveal.** The reveal round opens only after the commit round closes. Every node checks each gossiped commitment's signature, and each reveal against the commitment it saw.
 5. **Rule and seal.** Core's `ruleFromRecords` rules from the recorded commitments and reveals, with the sealer paid as `node:<id>`; a juror that did not commit or reveal is not counted and is listed in the round's `faults`. The ruling carries its `round` (seed, jury cards, commitments, reveals, faults, sealer account). Core's `seal` links the block to its parent with the time the sealer passes in (its clock, always after the parent's time), and with any challenge reviews under a `reviewsRoot`. The sealer verifies its own block exactly as every peer will.
 
+6. **Batching and the encrypted queue (L2).** L1 contracts seal one per block, as above. L2 contracts enter only through the encrypted queue (`POST /queue`), sealed t of n to the node set, with only the escrow reference and payment metadata in the clear. A block of them closes by value (warm-up at most 10% of the modeled cost and the escrow covers cost plus margin) or by time (`maxWaitSeconds`, 3,600 s by default); both defaults are illustrative and change only by amendment. Nodes release decryption shares only after the jury is drawn from the parent block hash. See [docs/batching.md](docs/batching.md).
+
 ## What every node checks on every block
 
 | Rule | Check | Rejection code |
@@ -126,6 +132,7 @@ Every module here imports `#core`. To develop against a local verafyHarness chec
 | Diffs conserve | core `conserves` | `diff-conserve` |
 | Pay every counted vote | the sealer account is `node:<sealer>`; core `checkPay`: every counted vote paid the same, dissent included; below the bar nobody is paid and the whole escrow carries to the escalated jury | `pay` |
 | Core agrees | core `verifyRuling(asc, ruling, {cards, pool, seed})` re-runs the ruling from its round and finds no problem | `replay` |
+| Batching | an L1 contract seals alone; no contract seals in a block with fewer rulings than its `minBatch` | `batch`, `batch-min` |
 | Rulings are never erased | a challenge names a sealed ruling that cleared the bar and keeps its jurors off the challenge jury; the block's reviews are exactly core's `resolveChallenge`, appendable by `appendReview`, under the `reviewsRoot` | `review` |
 
 Blocks, rulings and reviews are append-only in SQLite: triggers abort any `UPDATE` or `DELETE`. A challenge is a new contract in core's `challengeContract` format (`review.kind` is `swarm.challenge/0`): it names a sealed ruling and its grounds (`new-evidence`, `false-evidence`, `error`, `changed-rules`), and pins the prior ruling and the new evidence as context. Its ruling appends a `swarm.review/0` record, `affirm`, `overturn` or `supersede`, to the original's review history; below the bar, the original stands and nothing is appended.
@@ -145,6 +152,12 @@ Each node serves it, read only, with CORS open for the explorer.
 | `GET /harnesses` | registered harnesses and their records: seated, counted, dissents, earned |
 | `GET /accounts` | balances implied by every sealed diff |
 | `GET /storage/<sha256>` | context bytes by hash, through the challenge window |
+| `GET /queue` | the encrypted queue: clear metadata and status of each entry, and the close decision now |
+| `GET /queue/committee` | the node set's queue keys and the shares needed to open a contract |
+| `GET /costs/<height>` | the modeled cost split of a sealed block's batched contracts |
+| `GET /config` | the chain parameters, with labels and sources |
+
+Write routes for the queue: `POST /queue` (`{ envelope }`, a sealed contract), `POST /quote` (`{ asc }` or `{ meta }`, a modeled quote before funding) and `POST /queue/shares` (`{ draw }`, a node's shares, released only for a draw it checks).
 
 A `proofHash`, when one appears, is a hash only. It means something alongside availability, bonds and challenges, never by itself.
 
