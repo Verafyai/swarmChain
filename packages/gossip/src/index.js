@@ -6,7 +6,7 @@
  *   reveal     a juror's signed reveal of that vote
  *   block      a sealed block
  *
- * Messages are identified by their SHA-256 (from `@swarmharness/core`), seen
+ * Messages are identified by their SHA-256 (from `@verafyharness/core`), seen
  * messages are dropped, and new ones are relayed to every peer. HTTP first;
  * libp2p later.
  * @module swarmchain/gossip

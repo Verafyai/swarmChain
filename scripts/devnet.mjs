@@ -5,12 +5,12 @@
  *   npm run devnet
  *
  * Starts three Swarm Chain nodes (ports 7101 to 7103) and five harness
- * processes from swarmHarness (ports 7201 to 7205, one per lab), submits all
- * five swarmHarness example contracts, waits for five blocks, and prints each
+ * processes from verafyHarness (ports 7201 to 7205, one per lab), submits all
+ * five verafyHarness example contracts, waits for five blocks, and prints each
  * block's hash as every node holds it. Exits 0 only if all three nodes hold the
  * same five blocks.
  *
- * The harnesses use the SCRIPTED provider (swarmHarness examples/mock-answers.json).
+ * The harnesses use the SCRIPTED provider (verafyHarness examples/mock-answers.json).
  * There is no model key here, so no model is called.
  */
 import { spawn } from 'node:child_process'
@@ -20,7 +20,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('swarmharness/package.json'))
+const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('verafyharness/package.json'))
 const NODES = [1, 2, 3].map(i => ({ id: `node-${i}`, url: `http://127.0.0.1:${7100 + i}`, port: 7100 + i }))
 const HARNESSES = ['h-anthropic-1', 'h-openai-1', 'h-google-1', 'h-meta-1', 'h-qwen-1'].map((id, i) => ({ id, port: 7201 + i }))
 const EXAMPLES = ['market-resolution', 'fact-check', 'forecast', 'delay-cover', 'fact-check-escalation']

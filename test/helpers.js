@@ -1,5 +1,5 @@
 /**
- * Test fixtures: an in-process network of chain nodes and swarmHarness
+ * Test fixtures: an in-process network of chain nodes and verafyHarness
  * harnesses (core's `Harness` with the scripted provider), joined by a local
  * gossip bus. Nothing here calls a model.
  */
@@ -10,12 +10,12 @@ import { Harness, mockProvider, seal } from '#core'
 import { ChainNode, localJurorClient } from '../packages/node/src/index.js'
 import { LocalBus } from '../packages/gossip/src/index.js'
 
-const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('swarmharness/package.json'))
+const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('verafyharness/package.json'))
 export const CONFIG = JSON.parse(readFileSync(join(HARNESS_ROOT, 'swarm.config.json'), 'utf8'))
 export const SCRIPT = JSON.parse(readFileSync(join(HARNESS_ROOT, 'examples', 'mock-answers.json'), 'utf8'))
 
 /**
- * Load one of swarmHarness's example contracts.
+ * Load one of verafyHarness's example contracts.
  * @param {string} name - such as `market-resolution`.
  * @returns {object} the contract.
  */
@@ -23,7 +23,7 @@ export function example(name) {
   return JSON.parse(readFileSync(join(HARNESS_ROOT, 'examples', `${name}.json`), 'utf8'))
 }
 
-/** The first five harnesses in swarmHarness's pool: one per lab. */
+/** The first five harnesses in verafyHarness's pool: one per lab. */
 export const FIVE_LABS = CONFIG.pool.slice(0, 5).map(h => h.id)
 
 /**

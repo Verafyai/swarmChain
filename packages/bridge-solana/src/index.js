@@ -5,7 +5,7 @@
  * A `call` trigger in a sealed ruling (for example `market.settle(NO)` on
  * Solana) may leave the chain only with signatures from at least the contract's
  * quorum of the jurors whose votes were counted. Signatures are checked with
- * `@swarmharness/core`.
+ * `@verafyharness/core`.
  * @module swarmchain/bridge-solana
  */
 import { verifyMessage } from '#core'
