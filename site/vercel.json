@@ -32,6 +32,17 @@
       "permanent": true
     },
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": "swarmchain.verafy.ai"
+        }
+      ],
+      "destination": "https://chain.verafy.ai/",
+      "permanent": true
+    },
+    {
       "source": "/:path*",
       "has": [
         {
