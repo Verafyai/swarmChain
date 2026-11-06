@@ -113,6 +113,8 @@ Every module here imports `#core`. To develop against a local verafyHarness chec
 
 6. **Batching and the encrypted queue (L2).** L1 contracts seal one per block, as above. L2 contracts enter only through the encrypted queue (`POST /queue`), sealed t of n to the node set, with only the escrow reference and payment metadata in the clear. A block of them closes by value (warm-up at most 10% of the modeled cost and the escrow covers cost plus margin) or by time (`maxWaitSeconds`, 3,600 s by default); both defaults are illustrative and change only by amendment. Nodes release decryption shares only after the jury is drawn from the parent block hash. See [docs/batching.md](docs/batching.md).
 
+7. **Proving (L2).** Commit and reveal run as for any contract, so proving never blocks the commit. Then each juror that revealed sends a signed proof record (`verafy.proof/1`: the proof hash, its vote commitment and the model commitment on its card) and its proof bundle before the proof deadline (`config/chain.json`, 600 s, illustrative). The sealing node keeps the bundle in its availability layer, runs its Verifier (verafyHarness `packages/prove`; the mock on the devnet, which is not a proof of inference) and signs a check. Core's `ruleFromRecords` counts a vote only with a proof that verifies; a missing or failed proof drops the vote, agreement is measured again against the bar (below it, the ruling escalates), and the round records a `no-proof` or `bad-proof` fault, which every node keeps against the harness's bond (`GET /faults`). Only the records and checks are on chain, never the proof.
+
 ## What every node checks on every block
 
 | Rule | Check | Rejection code |
@@ -131,7 +133,8 @@ Every module here imports `#core`. To develop against a local verafyHarness chec
 | Exits are declared | the exit and every vote are declared outcomes; below the bar takes `*below-bar` | `exit-undeclared` |
 | Diffs conserve | core `conserves` | `diff-conserve` |
 | Pay every counted vote | the sealer account is `node:<sealer>`; core `checkPay`: every counted vote paid the same, dissent included; below the bar nobody is paid and the whole escrow carries to the escalated jury | `pay` |
-| Core agrees | core `verifyRuling(asc, ruling, {cards, pool, seed})` re-runs the ruling from its round and finds no problem | `replay` |
+| Core agrees | core `verifyRuling(asc, ruling, {cards, pool, seed, verifiers})` re-runs the ruling from its round and finds no problem | `replay` |
+| L2 rulings are final | every counted vote has a proof record whose checks, signed by validator nodes, pass; a contract below L2 carries no proof records | `replay` |
 | Batching | an L1 contract seals alone; no contract seals in a block with fewer rulings than its `minBatch` | `batch`, `batch-min` |
 | Rulings are never erased | a challenge names a sealed ruling that cleared the bar and keeps its jurors off the challenge jury; the block's reviews are exactly core's `resolveChallenge`, appendable by `appendReview`, under the `reviewsRoot` | `review` |
 
@@ -151,6 +154,7 @@ Each node serves it, read only, with CORS open for the explorer.
 | `GET /contracts/<ascHash>` | one contract, with context as hashes |
 | `GET /harnesses` | registered harnesses and their records: seated, counted, dissents, earned |
 | `GET /accounts` | balances implied by every sealed diff |
+| `GET /faults` | faults recorded against bonds, such as `no-proof` and `bad-proof` (`?harness=<id>`) |
 | `GET /storage/<sha256>` | context bytes by hash, through the challenge window |
 | `GET /queue` | the encrypted queue: clear metadata and status of each entry, and the close decision now |
 | `GET /queue/committee` | the node set's queue keys and the shares needed to open a contract |

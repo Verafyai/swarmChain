@@ -9,11 +9,15 @@
  * five verafyHarness example contracts, waits for five blocks, then runs the
  * encrypted queue (MASTER_SPEC Part C): L2 contracts sealed 2 of 3 to the nodes,
  * a queue below the value threshold that does not close, a value close, and a
- * time close. Prints each block's hash as every node holds it. Exits 0 only if
- * all three nodes hold the same seven blocks.
+ * time close. Then proving (Part D): every L2 vote carries a proof hash that the
+ * sealing node verified with the mock prover's verifier; one missing proof drops
+ * a vote and records a fault, a drop below the bar escalates, and a proof under
+ * the wrong model commitment fails. Prints each block's hash as every node holds
+ * it. Exits 0 only if all three nodes hold the same ten blocks.
  *
  * The harnesses use the SCRIPTED provider (verafyHarness examples/mock-answers.json).
- * There is no model key here, so no model is called. Each harness keeps its
+ * There is no model key here, so no model is called. The mock prover is not a
+ * proof of inference: it exercises the flow, not the cryptography. Each harness keeps its
  * Ed25519 key in a PEM file in a temporary directory (core's `loadIdentity`),
  * deleted when the devnet stops.
  */
@@ -23,7 +27,7 @@ import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { sealContract, queueMeta } from '#core'
+import { sealContract, queueMeta, ascHash } from '#core'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('verafyharness/package.json'))
@@ -101,9 +105,10 @@ async function main() {
   }
 
   await queuePhase()
+  await provingPhase()
 
   const chains = await Promise.all(NODES.map(n => get(`${n.url}/blocks?full=1`)))
-  const total = EXAMPLES.length + 2
+  const total = EXAMPLES.length + 5
   console.log('\nblocks, as each node holds them')
   let same = chains.every(ch => ch.length === total)
   for (let i = 0; i < total; i++) {
@@ -116,6 +121,12 @@ async function main() {
     }
     const r = a.rulings[0]
     console.log(`    jury ${r.round.jury.map(c => c.id).join(', ')}; ${r.votes.length} counted votes, ${r.dissent.length} dissent; sealer account ${r.round.sealer}`)
+    if (r.round.proofRecords) {
+      const records = a.rulings.flatMap(x => x.round.proofRecords)
+      const checks = a.rulings.flatMap(x => x.round.proofChecks)
+      const faults = a.rulings.flatMap(x => x.round.faults)
+      console.log(`    L2: ${records.length} proof records (hashes only), ${checks.filter(k => k.ok).length} of ${checks.length} checks passed (mock verifier, signed by ${a.sealer}); faults ${faults.length ? faults.map(f => `${f.harness} ${f.fault}`).join(', ') : 'none'}`)
+    }
     for (const [j, n] of NODES.entries()) console.log(`    ${n.id}  ${chains[j][i].hash}`)
     console.log(`    ${match ? 'identical on all three nodes' : 'MISMATCH'}`)
   }
@@ -185,6 +196,47 @@ async function queuePhase() {
   await waitHeight(height + 2)
   const costs2 = await get(`${NODES[0].url}/costs/${height + 2}`)
   console.log(`  block ${height + 2} closed by time after ${((Date.now() - t0) / 1000).toFixed(1)} s (maxWaitSeconds 2): 1 contract pays the whole fixed cost, ${usd(costs2.split.blockCostUsd)} (modeled)`)
+}
+
+/** Part D: proof deadline, finality, faults against bonds, escalation, and hashes only on chain. */
+async function provingPhase() {
+  const committee = await get(`${NODES[0].url}/queue/committee`)
+  console.log('\nproving (L2, mock prover; not a proof of inference): commit, reveal, then a proof hash per counted vote before the deadline')
+  const harnessUrl = id => `http://127.0.0.1:${HARNESSES.find(h => h.id === id).port}`
+  const cases = [
+    { label: 'one missing proof', asc: await l2('market-resolution', { escrow: 2, maxWaitSeconds: 1 }), harness: 'h-qwen-1', control: 'withhold', expect: r => r.passed && r.votes.length === 4 },
+    { label: 'below the bar after the drop', asc: await l2('fact-check', { bar: 0.9, maxWaitSeconds: 1 }), harness: 'h-anthropic-1', control: 'withhold', expect: r => !r.passed && r.exit === '*below-bar' },
+    { label: 'a proof under the wrong model commitment', asc: await l2('delay-cover', { escrow: 0.7, maxWaitSeconds: 1 }), harness: 'h-google-1', control: 'wrongCommitment', expect: r => r.passed && r.votes.length === 4 },
+  ]
+  let ref = 100
+  for (const c of cases) {
+    await post(`${harnessUrl(c.harness)}/control`, { [c.control]: [ascHash(c.asc)] })
+    const height = (await get(`${NODES[0].url}/health`)).height
+    const env = sealContract(c.asc, committee.nodes, { t: committee.t, escrowRef: `solana:devnet/escrow-demo-${++ref}` })
+    await post(`${NODES[ref % NODES.length].url}/queue`, { envelope: env })
+    await waitHeight(height + 1)
+    const block = await get(`${NODES[0].url}/blocks/${height + 1}`)
+    const r = block.rulings[0]
+    const fault = r.round.faults.find(f => f.harness === c.harness)
+    console.log(`  block ${block.height} ${c.label}: ${c.harness} ${c.control === 'withhold' ? 'sent no proof' : 'proved under another commitment'}; fault ${fault?.fault ?? 'NONE'}; ${r.votes.length} counted votes; agreement ${r.agreement} against a bar of ${r.bar}; ${r.passed ? `${r.exit}, final` : `${r.exit}, escalated, escrow carried`}`)
+    if (!fault || !c.expect(r)) throw new Error(`${c.label}: unexpected ruling`)
+  }
+  const faults = await Promise.all(NODES.map(n => get(`${n.url}/faults`)))
+  const same = faults.every(f => JSON.stringify(f) === JSON.stringify(faults[0]))
+  console.log(`  faults against bonds, as each node holds them: ${faults[0].map(f => `${f.harness} ${f.fault} (bond ${f.bond}, block ${f.height})`).join('; ')}; ${same ? 'identical on all three nodes' : 'MISMATCH'}`)
+  if (!same || faults[0].length !== cases.length) throw new Error('fault records differ or are missing')
+  // Only hashes land on chain: no proof key anywhere, no bundle text in any block; the bundles sit in the sealer's storage.
+  const blocks = await get(`${NODES[0].url}/blocks?full=1`)
+  const text = JSON.stringify(blocks)
+  const keyed = /"proofs?":/.test(text)
+  const records = blocks.flatMap(b => b.rulings.flatMap(r => (r.round.proofRecords ?? []).map(x => ({ ...x, sealer: b.sealer }))))
+  let held = 0
+  for (const x of records) {
+    const res = await fetch(`${NODES.find(n => n.id === x.sealer).url}/storage/${x.proofHash}`)
+    if (res.ok && !text.includes(JSON.stringify((await res.json()).content).slice(1, -1))) held++
+  }
+  console.log(`  on chain: ${records.length} proof hashes, ${keyed ? 'A PROOF FIELD' : 'no proof field'}, ${text.includes('verafy.proof-bundle/1') ? 'BUNDLE TEXT' : 'no bundle text'}; ${held} of ${records.length} bundles held off chain in the sealer's availability layer`)
+  if (keyed || text.includes('verafy.proof-bundle/1') || held !== records.length) throw new Error('proof data on chain, or a bundle not held')
 }
 
 const stop = async () => {

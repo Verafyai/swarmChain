@@ -10,6 +10,7 @@
  *   GET /contracts/<ascHash>    one contract (context as hashes)
  *   GET /harnesses              registered harnesses with their records
  *   GET /accounts               balances implied by every sealed diff
+ *   GET /faults                 faults recorded against bonds (?harness=<id>), such as no-proof and bad-proof
  *
  * A vote's `proofHash`, when present, is a hash only. It is not a proof by
  * itself: it means something only alongside availability, bonds and challenges.
@@ -50,12 +51,13 @@ export function readApi(store) {
       const r = store.ruling(ref)
       if (!r) return missing('ruling')
       const { round, ...ruling } = r.ruling
-      return ok({ ...summary(r), ruling, jury: round.jury.map(c => c.id), seed: round.seed, sealer: round.sealer, faults: round.faults, reviews: store.reviews(ref) })
+      return ok({ ...summary(r), ruling, jury: round.jury.map(c => c.id), seed: round.seed, sealer: round.sealer, faults: round.faults, proofRecords: round.proofRecords, reviews: store.reviews(ref) })
     }
     if (head === 'contracts' && !ref) return ok(store.contracts().map(({ asc, ...c }) => ({ ...c, title: asc.title })))
     if (head === 'contracts') return store.contract(ref) ? ok(store.contract(ref)) : missing('contract')
     if (head === 'harnesses' && !ref) return ok(harnessRecords(store))
     if (head === 'accounts' && !ref) return ok(accounts(store))
+    if (head === 'faults' && !ref) return ok(store.faults(req.query.get('harness') ?? undefined))
     return null
   }
 }

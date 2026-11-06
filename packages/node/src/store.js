@@ -56,13 +56,22 @@ CREATE TABLE IF NOT EXISTS queue (
   asc_hash TEXT,
   seq INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS faults (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  height INTEGER NOT NULL,
+  block_hash TEXT NOT NULL REFERENCES blocks(hash),
+  asc_hash TEXT NOT NULL,
+  harness TEXT NOT NULL,
+  fault TEXT NOT NULL,
+  bond REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS harnesses (
   id TEXT PRIMARY KEY,
   json TEXT NOT NULL
 );
 `
 
-const APPEND_ONLY = ['blocks', 'rulings', 'reviews']
+const APPEND_ONLY = ['blocks', 'rulings', 'reviews', 'faults']
 
 export class BlockStore {
   /**
@@ -228,6 +237,24 @@ export class BlockStore {
    */
   openSealed(id, ascHash) {
     this.db.prepare("UPDATE queue SET status = 'opened', asc_hash = ? WHERE queue_id = ?").run(ascHash, id)
+  }
+
+  /**
+   * Record a fault from a sealed round against a harness's bond. Append-only.
+   * @param {{harness: string, fault: string, bond: number, ascHash: string, height: number, block: string}} f - the fault.
+   */
+  addFault(f) {
+    this.db.prepare('INSERT INTO faults (height, block_hash, asc_hash, harness, fault, bond) VALUES (?, ?, ?, ?, ?, ?)').run(f.height, f.block, f.ascHash, f.harness, f.fault, f.bond)
+  }
+
+  /**
+   * Faults recorded against bonds, oldest first.
+   * @param {string} [harness] - only this harness's.
+   * @returns {{height: number, block: string, ascHash: string, harness: string, fault: string, bond: number}[]} the faults.
+   */
+  faults(harness) {
+    const rows = harness ? this.db.prepare('SELECT * FROM faults WHERE harness = ? ORDER BY seq').all(harness) : this.db.prepare('SELECT * FROM faults ORDER BY seq').all()
+    return rows.map(r => ({ height: r.height, block: r.block_hash, ascHash: r.asc_hash, harness: r.harness, fault: r.fault, bond: r.bond }))
   }
 
   /** @param {object} entry - a signed harness registration. */
