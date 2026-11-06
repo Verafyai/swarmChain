@@ -1,0 +1,928 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Verafy Chain</title>
+<meta name="description" content="Verafy Chain is a concept: contracts written in natural language, ruled on by a network of harnessed AI validators that anyone can run.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: a court docket. A left gutter carries section marks and labels; the record runs on the right. The hero is a fixed 16:9 animation that can be screen-recorded as is. */
+:root{
+  --paper:#EDF0F3; --sheet:#FFFFFF; --ink:#16212C; --mute:#566473; --rule:#CDD5DD;
+  --accent:#3640C9; --accent-soft:#DADDF7; --accent-ink:#FFFFFF;
+  --allow:#1C7A4E; --hold:#A0561A; --deny:#B3263A;
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0F151B; --sheet:#161E26; --ink:#E4EAF0; --mute:#93A1AF; --rule:#2A3541;
+  --accent:#8A92FF; --accent-soft:#252A55; --accent-ink:#0F151B;
+  --allow:#5CC995; --hold:#E0A060; --deny:#F07585; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0F151B; --sheet:#161E26; --ink:#E4EAF0; --mute:#93A1AF; --rule:#2A3541;
+  --accent:#8A92FF; --accent-soft:#252A55; --accent-ink:#0F151B;
+  --allow:#5CC995; --hold:#E0A060; --deny:#F07585; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.6;margin:0}
+a{color:var(--accent);text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);font-stretch:88%;letter-spacing:-.015em;line-height:1.08;text-wrap:balance;margin:0}
+h2{font-size:clamp(28px,3.4vw,40px);font-weight:750}
+h3{font-size:21px;font-weight:700;font-stretch:95%}
+p{margin:0}
+.lbl{font-family:var(--mono);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.num{font-variant-numeric:tabular-nums}
+.mut{color:var(--mute)}
+.lead{max-width:40em}
+
+.coinfree{background:var(--sheet);border-top:3px solid var(--accent);border-bottom:1px solid var(--rule)}
+.coinfree .wrap{padding-block:22px 24px;display:flex;flex-direction:column;gap:8px}
+.coinfree h2{font-size:clamp(24px,2.6vw,32px);color:var(--ink)}
+.coinfree p{max-width:46em;color:var(--ink);overflow-wrap:break-word}
+.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding-block:22px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.brand{font-family:var(--display);font-weight:800;font-size:20px;font-stretch:110%;color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;gap:10px}
+.brand .mark{color:var(--ink);flex:none}
+.status{font-family:var(--mono);font-size:12.5px;color:var(--hold);border:1px solid currentColor;padding:4px 10px;border-radius:2px}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin-right:auto;margin-left:12px}
+.tabs a{font-family:var(--display);font-weight:600;font-size:15px;color:var(--mute);text-decoration:none;padding:6px 10px;border-radius:2px;border:1px solid transparent}
+.tabs a:hover{color:var(--ink);border-color:var(--rule)}
+.tabs a[aria-current="page"]{color:var(--ink);border-color:var(--ink)}
+.tabs{order:3;width:100%;margin:0 0 0 -10px}
+.top .status{margin-left:auto}
+@media (max-width:560px){.top .status{margin-left:0}}
+.road{display:flex;flex-direction:column;border-top:1px solid var(--rule)}
+.ms{display:grid;grid-template-columns:150px minmax(0,1fr);gap:6px 24px;padding:18px 0;border-bottom:1px solid var(--rule)}
+.ms .st{font-family:var(--mono);font-size:12.5px;padding-top:4px}
+.ms .st.done{color:var(--allow)} .ms .st.next{color:var(--accent)} .ms .st.later{color:var(--mute)}
+.ms p{font-size:16.5px;color:var(--mute)}
+@media (max-width:560px){.ms{grid-template-columns:minmax(0,1fr)}}
+
+.sec{display:grid;grid-template-columns:200px minmax(0,1fr);gap:28px 48px;padding-block:64px;border-bottom:1px solid var(--rule)}
+.sec>.gut{padding-top:6px}
+.sec .docket{font-family:var(--mono);font-size:13px;color:var(--accent);display:block;margin-bottom:6px}
+.sec .body{display:flex;flex-direction:column;gap:22px;min-width:0}
+@media (max-width:820px){.sec{grid-template-columns:minmax(0,1fr);padding-block:44px;gap:14px}}
+
+/* hero */
+.hero{padding-block:48px 44px;display:flex;flex-direction:column;gap:20px}
+.hero h1{font-size:clamp(38px,5.8vw,76px);font-weight:800;font-stretch:76%;max-width:17ch}
+.twos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;max-width:960px}
+@media (max-width:700px){.twos{grid-template-columns:minmax(0,1fr)}}
+.twos .c{border-top:2px solid var(--ink);padding-top:12px;display:flex;flex-direction:column;gap:6px}
+.twos .c .n{font-family:var(--mono);font-size:13px;color:var(--accent)}
+.twos .c p{font-size:17.5px}
+.film{background:var(--sheet);border:1px solid var(--rule);border-radius:3px;overflow:hidden;margin-top:8px}
+.film svg{display:block;width:100%;height:auto;aspect-ratio:16/9}
+.filmbar{display:flex;gap:12px;align-items:center;padding:10px 14px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:12.5px;color:var(--mute);height:48px}
+.filmbar button{margin-left:auto;font:inherit;background:none;border:1px solid var(--rule);color:var(--ink);padding:5px 10px;border-radius:2px;cursor:pointer}
+
+/* generic */
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+@media (max-width:900px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}.grid3{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:620px){.grid4,.grid2,.two{grid-template-columns:minmax(0,1fr)}}
+.col{border-top:2px solid var(--ink);padding-top:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.col p{font-size:16.5px;color:var(--mute)}
+.col .ex{font-family:var(--mono);font-size:13px;color:var(--ink);background:var(--paper);border:1px solid var(--rule);padding:8px 10px;border-radius:2px}
+.col ul{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:6px;font-size:16.5px}
+.card{background:var(--sheet);border:1px solid var(--rule);border-radius:3px;padding:20px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card .q{font-family:var(--mono);font-size:13px;background:var(--paper);border:1px solid var(--rule);padding:10px;border-radius:2px}
+.card p{font-size:16.5px;color:var(--mute)}
+.card .flow{font-family:var(--mono);font-size:12.5px;color:var(--ink);display:flex;flex-direction:column;gap:4px}
+.card .flow span::before{content:"› ";color:var(--accent)}
+
+.figure{background:var(--sheet);border:1px solid var(--rule);border-radius:3px;overflow-x:auto}
+.figure svg{display:block;min-width:720px;width:100%;height:auto}
+
+/* gauges */
+.gauges{display:flex;flex-direction:column;gap:14px;background:var(--sheet);border:1px solid var(--rule);border-radius:3px;padding:20px}
+.g{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:6px 16px;align-items:center}
+.g .t{font-size:16px}
+.g .bar{grid-column:1/-1;position:relative;height:14px;background:var(--paper);border:1px solid var(--rule);border-radius:2px}
+.g .fill{position:absolute;inset:0 auto 0 0;border-radius:1px}
+.g .th{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--ink)}
+.g .res{font-family:var(--mono);font-size:13px;text-align:right}
+.g.pass .fill{background:var(--allow)} .g.pass .res{color:var(--allow)}
+.g.fail .fill{background:var(--hold)} .g.fail .res{color:var(--hold)}
+.g .why{grid-column:1/-1;font-family:var(--mono);font-size:12.5px;color:var(--mute)}
+
+/* tables */
+.tbl{overflow-x:auto;border:1px solid var(--rule);border-radius:3px;background:var(--sheet)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:16px}
+th,td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--mono);font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);font-weight:400}
+tr:last-child td{border-bottom:0}
+td.v{font-family:var(--mono);font-size:14.5px;white-space:nowrap;font-variant-numeric:tabular-nums}
+td.k{color:var(--mute)}
+.tag{font-family:var(--mono);font-size:11.5px;padding:2px 7px;border:1px solid var(--rule);border-radius:2px;color:var(--mute);white-space:nowrap}
+.tag.m{color:var(--allow);border-color:currentColor}
+.tag.mo{color:var(--accent);border-color:currentColor}
+.tag.vr{color:var(--hold);border-color:currentColor}
+.str{font-family:var(--mono);font-size:12.5px}
+.str.hi{color:var(--allow)} .str.md{color:var(--hold)} .str.lo{color:var(--deny)}
+
+/* block stepper */
+.block{background:var(--sheet);border:1px solid var(--rule);border-radius:3px}
+.bhead{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;padding:16px 20px;border-bottom:1px solid var(--rule)}
+.bhead .h{font-family:var(--display);font-weight:800;font-size:24px;font-stretch:85%}
+.bhead .meta{font-family:var(--mono);font-size:13px;color:var(--mute)}
+.stages{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-bottom:1px solid var(--rule)}
+.stage{padding:11px 12px;border-right:1px solid var(--rule);font-family:var(--mono);font-size:12px;color:var(--mute);display:flex;flex-direction:column;gap:2px}
+.stage:last-child{border-right:0}
+.stage b{font-family:var(--display);font-size:16px;color:var(--ink);font-weight:700}
+.stage.on{background:var(--accent);color:var(--accent-ink)} .stage.on b{color:var(--accent-ink)}
+.stage.done b{color:var(--accent)}
+@media (max-width:640px){.stage{padding:9px 6px;font-size:0}.stage b{font-size:13px}}
+.bgrid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+@media (max-width:900px){.bgrid{grid-template-columns:minmax(0,1fr)}}
+.txs{border-right:1px solid var(--rule)}
+@media (max-width:900px){.txs{border-right:0;border-bottom:1px solid var(--rule)}}
+.tx{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 14px;padding:14px 20px;border:0;border-bottom:1px solid var(--rule);cursor:pointer;background:none;width:100%;text-align:left;font:inherit;color:inherit}
+.tx:last-child{border-bottom:0}
+.tx:hover,.tx.sel{background:var(--paper)}
+.tx.sel{box-shadow:inset 3px 0 0 var(--accent)}
+.tx .id{font-family:var(--mono);font-size:13px;color:var(--mute);padding-top:3px}
+.tx .what{font-size:16.5px;line-height:1.45}
+.tx .what small{display:block;font-family:var(--mono);font-size:12.5px;color:var(--mute);margin-top:3px}
+.pill{font-family:var(--mono);font-size:12px;padding:3px 8px;border-radius:2px;border:1px solid var(--rule);color:var(--mute);white-space:nowrap;align-self:start}
+.pill.allow{color:var(--allow);border-color:currentColor}
+.pill.hold{color:var(--hold);border-color:currentColor}
+.detail{padding:18px 20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.jury{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+@media (max-width:480px){.jury{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.ev{border:1px solid var(--rule);border-radius:2px;padding:8px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.ev .f{font-family:var(--display);font-weight:700;font-size:14px}
+.ev .h{font-family:var(--mono);font-size:10.5px;color:var(--mute);letter-spacing:.06em}
+.ev .v{font-family:var(--mono);font-size:11.5px;color:var(--mute);overflow-wrap:anywhere}
+.ruling{font-size:16px;line-height:1.5}
+.ruling .k{font-family:var(--mono);font-size:12.5px;color:var(--mute);display:block}
+.ctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 20px;border-top:1px solid var(--rule)}
+.btn{font-family:var(--display);font-weight:700;font-size:15px;padding:10px 16px;border-radius:2px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer}
+.btn.ghost{background:none;color:var(--ink)}
+.btn:disabled{opacity:.4;cursor:default}
+.ctl .note{font-family:var(--mono);font-size:12.5px;color:var(--mute);flex:1 1 220px}
+
+.probs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid var(--rule)}
+@media (max-width:700px){.probs{grid-template-columns:minmax(0,1fr)}}
+.prob{padding:18px 24px 18px 0;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:6px}
+.prob p{font-size:16.5px;color:var(--mute)}
+.foot{padding-block:36px 56px;font-size:15px;color:var(--mute);display:flex;flex-direction:column;gap:8px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<link rel="icon" href="/logo.svg" type="image/svg+xml">
+<link rel="canonical" href="https://chain.verafy.ai/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Verafy Chain">
+<meta property="og:title" content="Verafy Chain">
+<meta property="og:description" content="Contracts written in words. Validators with judgment. No token.">
+<meta property="og:url" content="https://chain.verafy.ai/">
+<meta property="og:image" content="https://chain.verafy.ai/banner.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://chain.verafy.ai/banner.png">
+</head>
+<body>
+
+
+<section class="coinfree" aria-labelledby="coinfreeH">
+  <div class="wrap">
+    <h2 id="coinfreeH">Coin-free guarantee.</h2>
+    <p>There is no coin. There is no board of directors, no governance, no VC, no vesting contracts, no corrupt treasury, and no fake community funds. There is no secretive engineering team being paid by someone to build it. You can specify and get paid in any coin you want, so there is no need to release another one. There is no exchange launch and no pump and dump. Verafy Chain is just meant to bring people back to the basics of crypto: playing around, having fun, and doing something innovative. That's it.</p>
+  </div>
+</section>
+<header class="wrap top">
+  <a class="brand" href="/"><svg class="mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><line x1="16" y1="16" x2="16.00" y2="5.00" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="26.46" y2="12.60" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="22.47" y2="24.90" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="9.53" y2="24.90" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="5.54" y2="12.60" stroke="currentColor" stroke-width="1.2" opacity=".45"/><circle cx="16" cy="16" r="5.2" fill="var(--accent)"/><rect x="12.80" y="1.80" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="23.26" y="9.40" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="19.27" y="21.70" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="6.33" y="21.70" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="2.34" y="9.40" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/></svg>Verafy Chain</a>
+  <nav class="tabs" aria-label="Verafy Chain and Verafy Harness">
+    <a href="/" aria-current="page">Verafy Chain</a>
+    <a href="https://harness.verafy.ai">Verafy Harness</a>
+    <a href="https://harness.verafy.ai/run">Run a harness</a>
+    <a href="https://harness.verafy.ai/testnet">Testnet</a>
+    <a href="https://harness.verafy.ai/coin-agnostic">Coin Agnostic</a>
+    <a href="https://asc.verafy.ai">Actually Smart Contracts</a>
+    <a href="https://github.com/Verafyai/verafyHarness">GitHub</a>
+    <a href="#roadmap">Roadmap</a>
+  </nav>
+  <span class="status">Concept. Not a running network.</span>
+</header>
+
+<main class="wrap">
+<section class="hero" aria-labelledby="h1">
+  <p class="lbl">A Verafy research concept</p>
+  <h1 id="h1">Contracts written in words. Validators with judgment.</h1>
+  <div class="twos">
+    <div class="c"><span class="n">Change one</span><h3>Natural language contracts</h3><p>A contract is a compressed intention: what should happen, under what conditions, judged against which sources. It goes to an AI jury that renders an outcome, instead of being limited to what can be written as math.</p></div>
+    <div class="c"><span class="n">Change two</span><h3>The validator becomes a harnessed AI</h3><p>A validator is an AI model wrapped in a harness that handles its inputs, outputs, tools, keys, bond and smart contracts. Anyone can run one. Together they form an oracle network built from harnesses.</p></div>
+  </div>
+
+  <div class="film">
+    <svg id="heroSvg" viewBox="0 0 1200 675" role="img" aria-labelledby="heroT heroD">
+      <title id="heroT">How Verafy Chain works</title>
+      <desc id="heroD">Intentions written in words go to a jury of five harnessed validators, each an AI model from a different lab wrapped in a harness. Each one locks in a vote, then reveals it. Their agreement fills a meter past the contract's bar. The ruling seals a new block, the harness triggers the contract's payout, and the fee pays the validators.</desc>
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--rule)"/></marker>
+      </defs>
+      <rect width="1200" height="675" fill="var(--sheet)"/>
+      <text x="40" y="52" font-family="Archivo, Arial, sans-serif" font-weight="800" font-size="26" fill="var(--ink)">Verafy Chain</text>
+      <text x="245" y="52" font-family="JetBrains Mono, monospace" font-size="14" fill="var(--mute)">contracts in words, validators with judgment</text>
+      <text id="hStep" x="1160" y="52" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="14" fill="var(--accent)">1 / 5  ASK</text>
+      <line x1="40" y1="72" x2="1160" y2="72" stroke="var(--rule)"/>
+      <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="12" fill="var(--mute)" letter-spacing="1.2">
+        <text x="40" y="104">WORDS IN</text>
+        <text x="455" y="104">HARNESSED VALIDATORS</text>
+        <text x="860" y="104">CLOSE ENOUGH?</text>
+        <text x="40" y="548">THE CHAIN</text>
+      </g>
+      <g id="cards" font-family="Source Serif 4, Georgia, serif" font-size="16"></g>
+      <path d="M345 260 H385" stroke="var(--rule)" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+      <path d="M810 260 H850" stroke="var(--rule)" stroke-width="2" fill="none" marker-end="url(#ah)"/>
+      <g id="jury"></g>
+      <circle cx="598" cy="272" r="40" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+      <text x="598" y="268" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-weight="700" font-size="15" fill="var(--ink)">ruling</text>
+      <text id="hubTxt" x="598" y="287" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--mute)">waiting</text>
+      <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="13">
+        <rect x="860" y="118" width="300" height="290" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text id="mQ" x="878" y="148" fill="var(--ink)" font-family="Source Serif 4, Georgia, serif" font-size="16">Question</text>
+        <text id="mKind" x="878" y="172" fill="var(--mute)" font-size="12">contract</text>
+        <rect x="878" y="226" width="264" height="24" rx="2" fill="var(--sheet)" stroke="var(--rule)"/>
+        <rect id="mFill" x="879" y="227" width="0" height="22" rx="1" fill="var(--allow)"/>
+        <line id="mTh" x1="1063" y1="216" x2="1063" y2="260" stroke="var(--ink)" stroke-width="2"/>
+        <text id="mThT" x="1063" y="208" text-anchor="middle" fill="var(--mute)" font-size="12">needs 70%</text>
+        <text id="mVal" x="878" y="300" fill="var(--ink)" font-size="30" font-weight="600">0%</text>
+        <text id="mRes" x="878" y="330" fill="var(--mute)">agreement</text>
+        <text id="mOut" x="878" y="362" fill="var(--mute)"> </text>
+        <text id="mTrig" x="878" y="388" fill="var(--accent)" font-size="12"> </text>
+      </g>
+      <text id="hCap" x="40" y="470" font-family="Source Serif 4, Georgia, serif" font-size="24" fill="var(--ink)">Someone writes an intention in words and funds it.</text>
+      <text id="hCap2" x="40" y="500" font-family="JetBrains Mono, monospace" font-size="13" fill="var(--mute)"> </text>
+      <line x1="40" y1="600" x2="1160" y2="600" stroke="var(--rule)" stroke-width="2"/>
+      <g id="chain" font-family="JetBrains Mono, monospace" font-size="12"></g>
+      <g id="coins"></g>
+      <text x="40" y="655" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--mute)">Concept. Not a running network. Scripted example.</text>
+      <text x="1160" y="655" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--mute)">verafy.ai</text>
+    </svg>
+    <div class="filmbar"><span>16:9, fixed frame. Loops through four rulings.</span><button id="pause" aria-pressed="false">Pause</button></div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s1">
+  <div class="gut"><span class="docket">§ 1</span><span class="lbl">Change one</span></div>
+  <div class="body">
+    <h2 id="s1">Contracts as compressed intentions</h2>
+    <p class="lead">A smart contract today can only act on what someone could express as math. Most of what people want enforced isn't math: a policy, a promise, a claim, a condition about the world. Verafy Chain lets the contract be the intention itself, written in plain language and pinned by hash. Each request is distributed to a jury of harnessed validators, and the outcome they agree on is what the contract does.</p>
+    <div class="grid4">
+      <div class="col"><h3>Questions</h3><p>Something with an answer that can be found.</p><span class="ex">Did the bill pass the Senate by Nov 30?</span></div>
+      <div class="col"><h3>Intentions</h3><p>What a person or group wants to happen, and when.</p><span class="ex">Pay out if my flight lands 3+ hours late.</span></div>
+      <div class="col"><h3>Ideas</h3><p>A claim or proposal to be weighed, not just looked up.</p><span class="ex">Does this milestone meet Article 4?</span></div>
+      <div class="col"><h3>Forecasts</h3><p>A view about the future, given as a probability.</p><span class="ex">Chance of a rate cut in March?</span></div>
+    </div>
+    <p class="lead mut">The intention is compressed: a short instruction plus pinned context, not a conversation. That keeps it cheap to distribute, easy to hash, and the same for every juror.</p>
+    <h3 style="margin-top:12px">What goes into an Actually Smart Contract</h3>
+    <p class="lead">Every Actually Smart Contract has the same four parts. Context says what to judge against. The question says what to decide. Payment funds the jury that decides it. Exits are the only things the contract can do once it has an answer.</p>
+    <div class="film">
+      <svg id="ascSvg" viewBox="0 0 1200 675" role="img" aria-labelledby="ascT ascD">
+        <title id="ascT">Anatomy of an Actually Smart Contract</title>
+        <desc id="ascD">An Actually Smart Contract is assembled from four parts: context (a link, text and a policy, each pinned by hash), a question, payment held in escrow with jury settings, and a list of exits. The contract is pinned by hash and sent to five harnessed validators. They rule NO with 94% agreement against an 80% bar, the NO exit fires, and the escrow pays the jurors.</desc>
+        <rect width="1200" height="675" fill="var(--sheet)"/>
+        <text x="40" y="52" font-family="Archivo, Arial, sans-serif" font-weight="800" font-size="26" fill="var(--ink)">Anatomy of an Actually Smart Contract</text>
+        <text id="aStep" x="1160" y="52" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="14" fill="var(--accent)">1 / 7</text>
+        <line x1="40" y1="72" x2="1160" y2="72" stroke="var(--rule)"/>
+        <rect id="aBox" x="40" y="92" width="620" height="500" rx="3" fill="var(--paper)" stroke="var(--rule)" stroke-width="1.5"/>
+        <text x="60" y="122" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--mute)" letter-spacing="1.2">ACTUALLY SMART CONTRACT</text>
+        <text id="aHash" x="640" y="122" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--accent)"> </text>
+        <g id="aSlots" font-family="JetBrains Mono, monospace" font-size="13"></g>
+        <g id="aRight" font-family="JetBrains Mono, monospace" font-size="13"></g>
+        <g id="aCoins"></g>
+        <text id="aCap" x="40" y="632" font-family="Source Serif 4, Georgia, serif" font-size="22" fill="var(--ink)"> </text>
+        <text x="1160" y="655" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--mute)">Concept. Scripted example.</text>
+      </svg>
+      <div class="filmbar"><span>16:9, fixed frame. Loops.</span><button id="aPause" aria-pressed="false">Pause</button></div>
+    </div>
+    <div class="grid4">
+      <div class="col"><h3>Context</h3><p>Links, text, policies, rules, documents. Each is pinned by hash so every juror reads the same thing.</p></div>
+      <div class="col"><h3>Question</h3><p>The intention, compressed to what must be decided, plus the input for this request.</p></div>
+      <div class="col"><h3>Payment</h3><p>Escrow that pays the jury, with the jury's size, the labs it must span, and the bar it must clear.</p></div>
+      <div class="col"><h3>Exits</h3><p>The outcomes the jury may choose and what each does: pay, refund, hold, or call a contract on another chain.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s2">
+  <div class="gut"><span class="docket">§ 2</span><span class="lbl">Change two</span></div>
+  <div class="body">
+    <h2 id="s2">A validator is an AI model in a harness</h2>
+    <p class="lead">On today's chains a validator is a machine that re-runs code and votes on blocks. On Verafy Chain a validator is an AI model wrapped in a harness. The model brings judgment. The harness does everything else a validator does: it takes requests in, loads and checks their context, gives the model safe tools, signs and posts votes, holds the bond, and runs the smart contracts that act on rulings. <a href="https://harness.verafy.ai">More on Verafy Harness</a></p>
+    <div class="figure" role="img" aria-label="Block diagram of a harnessed validator. On the left, inputs: requests from Verafy Chain or any chain, and pinned context from the availability layer. Inside the harness: an intake queue, a context loader that verifies hashes, a tools sandbox, the pinned AI model at the center, guardrails, a signer for commit and reveal, a contract runtime for escrow, payouts and triggers, a bond wallet, a track record, attestation of the model and hardware, and a routing agent of four blocks: a keyblock that holds API and wallet keys encrypted and issues scoped keys, a banker that accepts any token and swaps between tokens, an API router that plugs into and pays AI APIs, routers, provers and hosts and picks AI by provability from L0 to L2, and a payment wallet. Payments in any asset come in on the left. On the right, outputs: votes and rulings posted to Verafy Chain, contract calls to other chains, AI APIs and provers, and cloud hosts paid automatically.">
+      <svg viewBox="0 0 1100 720" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, ui-monospace, monospace" font-size="13">
+        <!-- external inputs -->
+        <text x="20" y="34" fill="var(--mute)" font-size="12" letter-spacing="1.2">IN</text>
+        <rect x="20" y="120" width="170" height="70" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="34" y="148" fill="var(--ink)" font-weight="600">Requests</text>
+        <text x="34" y="170" fill="var(--mute)" font-size="12">Verafy Chain, any chain</text>
+        <rect x="20" y="250" width="170" height="70" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="34" y="278" fill="var(--ink)" font-weight="600">Pinned context</text>
+        <text x="34" y="300" fill="var(--mute)" font-size="12">availability layer</text>
+        <rect x="20" y="380" width="170" height="70" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="34" y="408" fill="var(--ink)" font-weight="600">Live sources</text>
+        <text x="34" y="430" fill="var(--mute)" font-size="12">snapshotted by hash</text>
+        <!-- harness frame -->
+        <rect x="230" y="40" width="640" height="660" rx="3" fill="var(--sheet)" stroke="var(--accent)" stroke-width="2"/>
+        <text x="250" y="68" fill="var(--accent)" font-weight="600" font-size="14" letter-spacing="1">HARNESS</text>
+        <text x="350" y="68" fill="var(--mute)" font-size="12">run by anyone, on their own hardware or API keys</text>
+        <!-- left modules -->
+        <rect x="250" y="110" width="170" height="60" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="264" y="136" fill="var(--ink)" font-weight="600">Intake</text><text x="264" y="156" fill="var(--mute)" font-size="12">queue, budget check</text>
+        <rect x="250" y="240" width="170" height="60" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="264" y="266" fill="var(--ink)" font-weight="600">Context loader</text><text x="264" y="286" fill="var(--mute)" font-size="12">fetch, verify hashes</text>
+        <rect x="250" y="370" width="170" height="60" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="264" y="396" fill="var(--ink)" font-weight="600">Tools sandbox</text><text x="264" y="416" fill="var(--mute)" font-size="12">fetch, code, data</text>
+        <!-- model -->
+        <rect x="460" y="190" width="180" height="160" rx="2" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="550" y="236" text-anchor="middle" fill="var(--ink)" font-weight="600" font-size="16" font-family="Archivo, Arial, sans-serif">AI model</text>
+        <text x="550" y="260" text-anchor="middle" fill="var(--mute)" font-size="12">pinned version</text>
+        <text x="550" y="280" text-anchor="middle" fill="var(--mute)" font-size="12">reads, reasons,</text>
+        <text x="550" y="298" text-anchor="middle" fill="var(--mute)" font-size="12">returns outcome</text>
+        <text x="550" y="316" text-anchor="middle" fill="var(--mute)" font-size="12">and confidence</text>
+        <rect x="460" y="110" width="180" height="56" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="474" y="134" fill="var(--ink)" font-weight="600">Guardrails</text><text x="474" y="153" fill="var(--mute)" font-size="12">evidence is data</text>
+        <!-- right modules -->
+        <rect x="680" y="110" width="170" height="60" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="694" y="136" fill="var(--ink)" font-weight="600">Signer</text><text x="694" y="156" fill="var(--mute)" font-size="12">commit and reveal</text>
+        <rect x="680" y="240" width="170" height="60" rx="2" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="694" y="266" fill="var(--ink)" font-weight="600">Contract runtime</text><text x="694" y="286" fill="var(--mute)" font-size="12">payouts, triggers</text>
+        <rect x="680" y="370" width="170" height="60" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="694" y="396" fill="var(--ink)" font-weight="600">Outbox</text><text x="694" y="416" fill="var(--mute)" font-size="12">post votes, call chains</text>
+        <!-- bottom row -->
+        <rect x="250" y="462" width="190" height="56" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="264" y="486" fill="var(--ink)" font-weight="600">Bond wallet</text><text x="264" y="505" fill="var(--mute)" font-size="12">stake at risk per vote</text>
+        <rect x="455" y="462" width="190" height="56" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="469" y="486" fill="var(--ink)" font-weight="600">Track record</text><text x="469" y="505" fill="var(--mute)" font-size="12">audits, forecast scores</text>
+        <rect x="660" y="462" width="190" height="56" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="674" y="486" fill="var(--ink)" font-weight="600">Attestation</text><text x="674" y="505" fill="var(--mute)" font-size="12">model and hardware</text>
+        <!-- routing agent -->
+        <rect x="250" y="540" width="600" height="140" rx="2" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="264" y="564" fill="var(--ink)" font-weight="600" font-size="14">Routing agent</text>
+        <text x="390" y="564" fill="var(--mute)" font-size="12">keys, money and outside APIs</text>
+        <rect x="264" y="580" width="134" height="84" rx="2" fill="var(--sheet)" stroke="var(--accent)"/>
+        <text x="274" y="602" fill="var(--ink)" font-weight="600">Keyblock</text>
+        <text x="274" y="622" fill="var(--mute)" font-size="11">encrypted keys,</text>
+        <text x="274" y="640" fill="var(--mute)" font-size="11">issues scoped keys</text>
+        <rect x="410" y="580" width="134" height="84" rx="2" fill="var(--sheet)" stroke="var(--rule)"/>
+        <text x="420" y="602" fill="var(--ink)" font-weight="600">Banker</text>
+        <text x="420" y="622" fill="var(--mute)" font-size="11">any token in,</text>
+        <text x="420" y="640" fill="var(--mute)" font-size="11">swaps, funds pay</text>
+        <rect x="556" y="580" width="134" height="84" rx="2" fill="var(--sheet)" stroke="var(--rule)"/>
+        <text x="566" y="602" fill="var(--ink)" font-weight="600">API router</text>
+        <text x="566" y="622" fill="var(--mute)" font-size="11">AI, routers, hosts,</text>
+        <text x="566" y="640" fill="var(--mute)" font-size="11">by provability</text>
+        <rect x="702" y="580" width="134" height="84" rx="2" fill="var(--sheet)" stroke="var(--rule)"/>
+        <text x="712" y="602" fill="var(--ink)" font-weight="600">Payment wallet</text>
+        <text x="712" y="622" fill="var(--mute)" font-size="11">caps, bond reserve,</text>
+        <text x="712" y="640" fill="var(--mute)" font-size="11">logs every move</text>
+        <!-- arrows -->
+        <g stroke="var(--rule)" stroke-width="1.6" fill="none" marker-end="url(#ah2)">
+          <path d="M190 155 H246"/><path d="M190 285 H246"/><path d="M190 415 H246"/>
+          <path d="M420 140 C 440 140 440 230 456 230"/><path d="M420 270 H456"/><path d="M420 400 C 440 400 440 320 456 320"/>
+          <path d="M640 230 C 660 230 660 140 676 140"/><path d="M640 270 H676"/><path d="M765 170 V236"/><path d="M765 300 V366"/>
+          <path d="M850 400 H916"/><path d="M850 270 C 880 270 890 300 916 300"/>
+          <path d="M190 640 C 240 692 400 692 470 666"/><path d="M836 600 C 880 600 890 530 916 530"/><path d="M836 640 C 880 640 890 650 916 650"/>
+        </g>
+        <defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--rule)"/></marker></defs>
+        <!-- outputs -->
+        <text x="920" y="34" fill="var(--mute)" font-size="12" letter-spacing="1.2">OUT</text>
+        <rect x="920" y="250" width="160" height="80" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="934" y="278" fill="var(--ink)" font-weight="600">Verafy Chain</text>
+        <text x="934" y="298" fill="var(--mute)" font-size="12">votes, rulings,</text>
+        <text x="934" y="314" fill="var(--mute)" font-size="12">sealed blocks</text>
+        <rect x="920" y="370" width="160" height="80" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="934" y="398" fill="var(--ink)" font-weight="600">Other chains</text>
+        <text x="934" y="418" fill="var(--mute)" font-size="12">Solana, Ethereum</text>
+        <text x="934" y="434" fill="var(--mute)" font-size="12">contract calls</text>
+        <rect x="920" y="490" width="160" height="80" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="934" y="518" fill="var(--ink)" font-weight="600">AI APIs, provers</text>
+        <text x="934" y="538" fill="var(--mute)" font-size="12">hosted models,</text>
+        <text x="934" y="554" fill="var(--mute)" font-size="12">ZK proofs</text>
+        <rect x="920" y="610" width="160" height="80" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="934" y="638" fill="var(--ink)" font-weight="600">Cloud hosts</text>
+        <text x="934" y="658" fill="var(--mute)" font-size="12">GPU, VM, storage,</text>
+        <text x="934" y="674" fill="var(--mute)" font-size="12">paid automatically</text>
+        <rect x="20" y="585" width="170" height="74" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="34" y="612" fill="var(--ink)" font-weight="600">Payments in</text>
+        <text x="34" y="632" fill="var(--mute)" font-size="12">any asset, any chain,</text>
+        <text x="34" y="648" fill="var(--mute)" font-size="12">any wallet</text>
+      </svg>
+    </div>
+    <div class="tbl"><table>
+      <thead><tr><th>What a validator does today</th><th>What the harness does</th></tr></thead>
+      <tbody>
+        <tr><td class="k">Receives transactions</td><td>Intake takes requests from Verafy Chain or any chain, checks the budget, and queues them.</td></tr>
+        <tr><td class="k">Re-executes bytecode</td><td>The model reads the intention and pinned context, uses sandboxed tools, and returns an outcome with a confidence.</td></tr>
+        <tr><td class="k">Votes on blocks</td><td>The signer commits a hidden vote, reveals it, and attests to which model and hardware produced it.</td></tr>
+        <tr><td class="k">Stakes</td><td>The bond wallet holds the stake that a proven fault would cost.</td></tr>
+        <tr><td class="k">Runs the state machine</td><td>The contract runtime runs the exact parts: escrow, payouts, and triggers declared by each contract.</td></tr>
+        <tr><td class="k">Serves RPC</td><td>The outbox posts votes and rulings, and calls contracts on other chains when a ruling fires them.</td></tr>
+        <tr><td class="k">Holds the keys</td><td>The keyblock keeps every API key and wallet key encrypted and issues short-lived scoped keys, so nothing else in the harness holds a raw secret.</td></tr>
+        <tr><td class="k">Pays its own way</td><td>The banker accepts any token and swaps between tokens; the API router plugs into AI APIs, external routers, provers and cloud hosts, pays each in the token it takes from the payment wallet, and sends each contract only to AI that meets its provability requirement, up to a zero-knowledge proof.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s3">
+  <div class="gut"><span class="docket">§ 3</span><span class="lbl">Contracts in the harness</span></div>
+  <div class="body">
+    <h2 id="s3">Smart contracts live inside the harness</h2>
+    <p class="lead">Each harness carries a contract runtime. When a ruling seals, the harness runs whatever the contract declared for that outcome: release escrow, pay a market's winning side, record a forecast score, or call a program on another chain. Ordinary smart contracts don't go away. They become the exact, mechanical part of a contract whose judgment is done in words.</p>
+    <div class="grid3">
+      <div class="col"><h3>Declared outcomes</h3><p>A contract lists its possible outcomes and what each one does. The jury can only pick from that list.</p><span class="ex">YES: pay yes-holders. NO: pay no-holders. UNCLEAR: refund all.</span></div>
+      <div class="col"><h3>Triggers</h3><p>An outcome can fire a call on another chain, signed by the quorum of harnesses that ruled.</p><span class="ex">On "pay claim": call delay_cover.settle() on Solana</span></div>
+      <div class="col"><h3>Checked by all</h3><p>Every harness runs the same runtime, so every harness can check that a payout matches the outcome exactly.</p><span class="ex">diff must conserve totals and match the outcome</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s4">
+  <div class="gut"><span class="docket">§ 4</span><span class="lbl">Run your own</span></div>
+  <div class="body">
+    <h2 id="s4">Anyone can run a harness</h2>
+    <p class="lead">Verafy Chain is an oracle network, but its nodes are harnesses rather than data feeds. You choose a model, run the harness on your own hardware or with your own API keys, post a bond, and start taking seats on juries. The network doesn't care which lab your model comes from. It cares that juries span several labs, and that your track record holds up under audit.</p>
+    <div class="grid4">
+      <div class="col"><h3>A model</h3><p>Open weights on your own GPU, or a hosted model through an API. You commit to one version.</p></div>
+      <div class="col"><h3>The harness</h3><p>One package: intake, loader, tools, guardrails, signer, contract runtime, outbox.</p></div>
+      <div class="col"><h3>A bond and a wallet</h3><p>Stake that sizes how much value your votes can decide, and a payment wallet the routing agent uses to pay for the AI and the hosting.</p></div>
+      <div class="col"><h3>A specialty</h3><p>Optional. Harnesses can advertise domains, such as sports results or earnings calls, and earn seats there.</p></div>
+    </div>
+    <p class="lead">The validator package is <a href="https://harness.verafy.ai">Verafy Harness</a>. Its site covers the blocks, the routing agent that pays for the AI, what runs today, and <a href="https://harness.verafy.ai/run">how to run one</a>.</p>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s5">
+  <div class="gut"><span class="docket">§ 5</span><span class="lbl">The network</span></div>
+  <div class="body">
+    <h2 id="s5">Networks of harnesses</h2>
+    <p class="lead">Many independent harnesses form a pool. Each request draws a random jury from the pool that meets the contract's rules: enough labs, enough bond, the right specialty. Other harnesses act as auditors, re-running sealed rulings later. Here is what that looks like for the first markets.</p>
+    <div class="figure" role="img" aria-label="Network diagram: a pool of eighteen independent harnesses from several labs. A request from a prediction market draws a jury of five harnesses from five different labs, highlighted. Two other harnesses are marked as auditors. The jury's ruling seals into Verafy Chain and triggers a settlement call on Solana.">
+      <svg viewBox="0 0 1100 420" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, ui-monospace, monospace" font-size="12" id="netSvg">
+        <rect x="20" y="160" width="180" height="90" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="34" y="188" fill="var(--ink)" font-weight="600" font-size="13">Request</text>
+        <text x="34" y="210" fill="var(--mute)">prediction market:</text>
+        <text x="34" y="228" fill="var(--mute)">resolve "bill passes"</text>
+        <text x="250" y="36" fill="var(--mute)" letter-spacing="1.2">POOL OF INDEPENDENT HARNESSES</text>
+        <rect x="240" y="48" width="560" height="350" rx="3" fill="none" stroke="var(--rule)" stroke-dasharray="4 4"/>
+        <g id="net"></g>
+        <rect x="860" y="110" width="220" height="80" rx="2" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="874" y="138" fill="var(--ink)" font-weight="600" font-size="13">Verafy Chain</text>
+        <text x="874" y="160" fill="var(--mute)">ruling sealed, 94% of 80%</text>
+        <rect x="860" y="230" width="220" height="80" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <text x="874" y="258" fill="var(--ink)" font-weight="600" font-size="13">Solana</text>
+        <text x="874" y="280" fill="var(--mute)">market.settle(NO) called</text>
+        <g stroke="var(--accent)" stroke-width="1.6" fill="none"><path d="M200 205 H236"/><path d="M800 150 H856"/><path d="M970 190 V226"/></g>
+        <g font-size="11"><rect x="260" y="372" width="12" height="12" fill="var(--accent)"/><text x="278" y="382" fill="var(--mute)">on this jury</text>
+        <rect x="380" y="372" width="12" height="12" fill="var(--sheet)" stroke="var(--hold)" stroke-width="2"/><text x="398" y="382" fill="var(--mute)">auditor</text>
+        <rect x="470" y="372" width="12" height="12" fill="var(--sheet)" stroke="var(--rule)"/><text x="488" y="382" fill="var(--mute)">idle</text></g>
+      </svg>
+    </div>
+    <div class="grid2">
+      <div class="card"><h3>Market resolution network</h3><span class="q">"Will the bill pass the Senate by Nov 30?" Source: senate.gov roll call, snapshot Dec 1.</span><div class="flow"><span>5 harnesses from 5 labs, bar 80%</span><span>94% agree: NO</span><span>harnesses call market.settle(NO) on Solana</span></div><p>The jury never sees the market price, so a position can't steer the resolution.</p></div>
+      <div class="card"><h3>Fact-check network</h3><span class="q">"Did the CEO say revenue doubled?" Source: earnings call transcript.</span><div class="flow"><span>harnesses with an earnings-call specialty</span><span>85% agree: misleading, one dissent</span><span>graded verdict published with sources</span></div><p>Newsrooms and platforms fund checks at a volume people can't keep up with.</p></div>
+      <div class="card"><h3>Forecast network</h3><span class="q">"Probability of a rate cut in March?"</span><div class="flow"><span>7 harnesses, forecasts 0.55 to 0.68</span><span>median 0.62, tight enough to settle</span><span>each harness scored when March arrives</span></div><p>Harnesses with better scores earn more seats over time.</p></div>
+      <div class="card"><h3>Trigger network</h3><span class="q">"Pay the claim if UA 1532 lands 3+ hours late."</span><div class="flow"><span>harnesses fetch and snapshot the flight record</span><span>100% agree: arrived 4h 12m late</span><span>quorum-signed call to delay_cover.settle()</span></div><p>Any chain's contracts can hire the network for a decision they can't make in code.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s6">
+  <div class="gut"><span class="docket">§ 6</span><span class="lbl">Close enough</span></div>
+  <div class="body">
+    <h2 id="s6">Rulings don't have to be exact. They have to clear the bar.</h2>
+    <p class="lead">Judgment is fuzzy, so Verafy Chain doesn't pretend otherwise. Every contract sets how much the jury must agree. A ruling at 85% agreement on a contract that requires 70% is final. A ruling at 60% isn't: it goes to a larger jury in the next block, or the contract falls back to its safe default.</p>
+    <div class="gauges" id="gauges"></div>
+    <div class="two">
+      <div class="col"><h3>How agreement is measured</h3><ul>
+        <li>Verdicts: the share of the jury, weighted by stated confidence, that picked the winning outcome.</li>
+        <li>Forecasts: how tightly the probabilities cluster around the median.</li>
+        <li>Graded answers: how many landed on the same grade or the one next to it.</li>
+      </ul></div>
+      <div class="col"><h3>Checked after the fact</h3><ul>
+        <li>Auditor harnesses re-run a random sample of sealed rulings with fresh labs.</li>
+        <li>Anyone can challenge a ruling with new evidence during its window, or later as precedent review.</li>
+        <li>Forecasts are scored against what happened, building each harness's track record.</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s7">
+  <div class="gut"><span class="docket">§ 7</span><span class="lbl">Proof of Judgment</span></div>
+  <div class="body">
+    <h2 id="s7">A block exists only when a jury rules</h2>
+    <p class="lead">Nothing mines or stakes its way into producing a block. A new block is added only when harnesses have ruled on the requests waiting for it, and the block is made of those rulings. The money that creates the block pays for the judgment inside it, and each block commits to its rulings and to the block before it.</p>
+    <div class="two">
+      <div class="col"><h3>Like proof of work</h3><ul>
+        <li>A block costs real resources to produce: model compute.</li>
+        <li>Anyone can join the pool by running a harness.</li>
+        <li>Each block is chained to the last by hash.</li>
+      </ul></div>
+      <div class="col"><h3>Unlike proof of work</h3><ul>
+        <li>The work is useful. Every unit pays for a decision someone asked for.</li>
+        <li>A hash is cheap to check. A judgment is not, so security leans on bonds, audits and challenges.</li>
+        <li>Small proofs of inference would close that gap.</li>
+      </ul></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s8">
+  <div class="gut"><span class="docket">§ 8</span><span class="lbl">Who pays, who earns</span></div>
+  <div class="body">
+    <h2 id="s8">People pay for answers. Harness operators earn by giving good ones.</h2>
+    <p class="lead">The network only exists if someone needs a decision badly enough to fund it. Prediction markets need resolutions, fact checkers need volume, forecasting apps need a crowd that runs around the clock, and contracts on other chains need decisions they can't make in code. Each funds requests in escrow, and that escrow pays the harnesses.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Harness role</th><th>What it does</th><th>How it earns</th><th>What it risks</th></tr></thead>
+      <tbody>
+        <tr><td class="k">Juror</td><td>Rules on requests with its committed model</td><td>A fee per counted vote, from escrow. Good forecast scores win more seats.</td><td>Bond, lost for running another model, missing a reveal, or failing audit</td></tr>
+        <tr><td class="k">Auditor</td><td>Re-runs sampled rulings with a different lab's model</td><td>An audit fee, plus the bond of any juror it catches</td><td>A smaller bond, lost for a false accusation</td></tr>
+        <tr><td class="k">Storage</td><td>Keeps prompts, context and evidence fetchable by hash</td><td>A storage fee for the challenge window</td><td>Bond, lost if a file can't be produced</td></tr>
+        <tr><td class="k">Sealer</td><td>Collects reveals, checks quorum and diffs, signs the block</td><td>A small fixed fee per block</td><td>Rejection of the block, and its fee</td></tr>
+      </tbody>
+    </table></div>
+    <p class="lead mut">One harness can play several roles. The fee split is a design parameter; a plausible start gives most of the escrow to jurors.</p>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="scoin" id="no-coin">
+  <div class="gut"><span class="docket">§ 8a</span><span class="lbl">No coin</span></div>
+  <div class="body">
+    <h2 id="scoin">There is no token. There is no need for one.</h2>
+    <p class="lead">Verafy Chain is coin agnostic on purpose. It runs on whatever asset people want to put into it. A contract can be paid in USDC on Solana, ETH on Ethereum, or any asset on any chain with contracts, and any wallet works. The point is to build something useful regardless of the crypto.</p>
+    <div class="grid3">
+      <div class="col"><h3>Money stays where it is</h3><p>The requester funds escrow on their own chain. Verafy Chain records the ruling, and a quorum-signed trigger releases the escrow there, in the same asset.</p></div>
+      <div class="col"><h3>A payment router in every harness</h3><p>Each harness plugs in a payment router and sets what it accepts, for example USDC on Solana. It takes seats only on contracts it will be paid for.</p><span class="ex">"payments": { "router": "solana-usdc", "accept": [{ "chain": "solana", "asset": "USDC" }] }</span></div>
+      <div class="col"><h3>Paid in what was paid in</h3><p>Jurors, auditors, storage and sealers are paid their share in the contract's own asset. Bonds are posted the same way.</p></div>
+    </div>
+    <h3 style="margin-top:6px">What the money pays for</h3>
+    <div class="grid4">
+      <div class="col"><h3>Inference</h3><p>Each juror runs its AI model on the contract. Tokens at a provider, or GPU time on its own hardware.</p></div>
+      <div class="col"><h3>Running the harness</h3><p>The machine, the network, uptime, a pinned model, and the capital locked in the bond.</p></div>
+      <div class="col"><h3>Audits and storage</h3><p>Re-running sampled rulings with another lab's model, and keeping every prompt and piece of evidence fetchable by hash.</p></div>
+      <div class="col"><h3>Bookkeeping</h3><p>Sealing blocks, checking every signature and diff, and the source chain's fee to release the escrow.</p></div>
+    </div>
+    <div class="card" style="margin-top:4px">
+      <h3>The routing agent pays the bills</h3>
+      <p>Every harness carries a routing agent built from four blocks. The <b>keyblock</b> holds every API key and wallet key encrypted and issues short-lived scoped keys, so nothing else in the harness touches a raw secret. The <b>banker</b> accepts any digital token, swaps one for another at the best quote on approved venues, and funds payments in whatever token a supplier takes. The <b>API router</b> plugs into AI APIs, external API routers, proving services and cloud hosts, and pays each one. The <b>payment wallet</b> is where earnings land and bills are paid from, within the operator's caps and never touching the bond.</p>
+      <div class="flow"><span>a juror asks the API router for a model call with a scoped key: call:openrouter</span><span>the router checks the route meets the contract's level, L0 to L2</span><span>the keyblock lends the API key for that one call; the juror never sees it</span><span>the banker swaps just enough SOL to USDC on an approved venue</span><span>the wallet pays the API and logs it against the ruling</span></div>
+      <p><span class="tag">built, with test venues</span> All four blocks run in the prototype with fixed-rate test venues and test APIs; real exchange venues and on-chain signing are planned. <a href="https://harness.verafy.ai/coin-agnostic#the-routing-agent">How it works</a></p></div>
+    <p class="lead mut">In the prototype the router is a local ledger that records every payout without moving funds. The Solana and EVM routers are on the roadmap. The whole policy, including what we will never do, is in <a href="https://harness.verafy.ai/coin-agnostic">Coin Agnostic</a>.</p>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s9">
+  <div class="gut"><span class="docket">§ 9</span><span class="lbl">Where the words live</span></div>
+  <div class="body">
+    <h2 id="s9">The block holds fingerprints. The words live next to it.</h2>
+    <p class="lead">Instructions and evidence can run to many pages, and a block has to stay small. So a block stores the short request inline and everything else as hashes. The full text sits in an availability layer kept by storage harnesses, and each juror's context loader fetches it and checks every hash before the model reads a word.</p>
+    <div class="figure" role="img" aria-label="Diagram: on the block, each ruling stores the short request prompt inline, and hashes for the instructions, context, evidence and full reasoning. Each hash points to the full text in the availability layer, kept fetchable through the challenge window and then archived.">
+      <svg viewBox="0 0 980 300" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, ui-monospace, monospace" font-size="13">
+        <text x="20" y="28" fill="var(--mute)" font-size="12" letter-spacing="1.2">ON THE BLOCK</text>
+        <rect x="20" y="40" width="400" height="240" rx="2" fill="var(--sheet)" stroke="var(--accent)"/>
+        <text x="38" y="68" fill="var(--ink)" font-weight="600" font-size="14">Ruling 48,211 / 3</text>
+        <rect x="38" y="82" width="364" height="44" rx="2" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="52" y="102" fill="var(--ink)">request prompt, inline</text>
+        <text x="52" y="118" fill="var(--mute)" font-size="12">"Did the CEO say revenue doubled?"</text>
+        <g fill="var(--mute)"><text x="52" y="152">instructions hash</text><text x="52" y="178">context hashes</text><text x="52" y="204">evidence hashes</text><text x="52" y="230">reasoning hash</text><text x="52" y="256" fill="var(--ink)">outcome, agreement 85%, votes</text></g>
+        <g stroke="var(--rule)" stroke-width="1.5" fill="none"><path d="M240 148 H560"/><path d="M240 174 H560"/><path d="M240 200 H560"/><path d="M240 226 H560"/></g>
+        <text x="560" y="28" fill="var(--mute)" font-size="12" letter-spacing="1.2">AVAILABILITY LAYER</text>
+        <rect x="560" y="40" width="400" height="240" rx="2" fill="var(--paper)" stroke="var(--rule)"/>
+        <g fill="var(--ink)"><text x="578" y="152">fact-check instructions, 2 pages</text><text x="578" y="178">house style guide, at a commit</text><text x="578" y="204">earnings call transcript, snapshot</text><text x="578" y="230">five jurors' full reasoning</text></g>
+        <text x="578" y="72" fill="var(--mute)" font-size="12">kept by bonded storage harnesses</text>
+        <text x="578" y="90" fill="var(--mute)" font-size="12">fetchable through the challenge window,</text>
+        <text x="578" y="108" fill="var(--mute)" font-size="12">then archived</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s10">
+  <div class="gut"><span class="docket">§ 10</span><span class="lbl">Performance</span></div>
+  <div class="body">
+    <h2 id="s10">How fast it could run, and what it would cost</h2>
+    <p class="lead">Every number carries a label. <span class="tag m">measured</span> comes from Verafy's prototype runs. <span class="tag mo">modeled</span> is arithmetic on published prices. <span class="tag vr">vendor-reported</span> has not been reproduced. Nothing here has run as a chain.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Lane</th><th>Latency per ruling</th><th>Model cost per ruling</th><th>Basis</th><th>Good for</th></tr></thead>
+      <tbody>
+        <tr><td>Fast screen (System 1 model)</td><td class="v">70 to 500 ms</td><td class="v">about $0.0004</td><td><span class="tag vr">vendor-reported</span> TypeSafe Jev, early access</td><td>Easy cases and the safe default; escalating the rest</td></tr>
+        <tr><td>Jury of 5 hosted models, live</td><td class="v">5.9 to 30.1 s</td><td class="v">about $0.003</td><td><span class="tag m">measured</span> Nov 6, 2026: five rulings through OpenRouter, $0.0163 in total</td><td>Market resolution, fact checks, forecasts, triggers</td></tr>
+        <tr><td>Jury of 5 budget models</td><td class="v">20 to 60 s</td><td class="v">$0.002 to $0.01</td><td><span class="tag m">measured</span> earlier prototype runs</td><td>Same</td></tr>
+        <tr><td>Jury of 5, modeled</td><td class="v">set by the slowest model</td><td class="v">about $0.006</td><td><span class="tag mo">modeled</span> 1,500 tokens in, 300 out, Oct 2026 prices</td><td>Same</td></tr>
+        <tr><td>Proven jury, proof per vote</td><td class="v">about 16 s proving per vote</td><td class="v">about $0.14</td><td><span class="tag mo">modeled</span> 110 tokens/s per H100 at $6.16 an hour; one open model, 1,024-token context</td><td>High-value rulings, once more models can be proven</td></tr>
+      </tbody>
+    </table></div>
+    <div class="grid3">
+      <div class="col"><h3>Block time</h3><p>A block can't seal faster than its slowest juror plus two short rounds to commit and reveal. Tens of seconds per block for full juries; under a second for the fast lane.</p></div>
+      <div class="col"><h3>Throughput</h3><p>Juries run in parallel across independent harnesses, so capacity grows with the pool. The limit is model capacity and money, not block size.</p></div>
+      <div class="col"><h3>Proofs</h3><p>One proof is about 18.78 MB and takes about 17 s to verify on 24 CPU threads. Auditors check them off chain; the block records their hashes.</p></div>
+    </div>
+    <p class="mut" style="font-size:15px">Sources: <a href="https://www.anthropic.com/research/provable-inference">Anthropic, Progress on provable inference</a>; model prices from the OpenRouter catalog, Oct 11, 2026; Jev figures as reported by TypeSafe.</p>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s11">
+  <div class="gut"><span class="docket">§ 11</span><span class="lbl">How secure</span></div>
+  <div class="body">
+    <h2 id="s11">Strong against some attacks, weak against others</h2>
+    <p class="lead">Verafy Chain is not secure the way a hash puzzle is. Its security is economic: lying has to cost a harness operator more than it pays.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Attack</th><th>Defense</th><th>Strength</th></tr></thead>
+      <tbody>
+        <tr><td>A juror copies the others</td><td>Commit-then-reveal in every signer</td><td><span class="str hi">strong</span></td></tr>
+        <tr><td>One lab's blind spot decides</td><td>Quorum must span distinct labs</td><td><span class="str hi">strong</span></td></tr>
+        <tr><td>An operator runs a cheaper model than committed</td><td>Bonds, auditor harnesses, attestation, proofs where available</td><td><span class="str md">moderate today, strong with proofs</span></td></tr>
+        <tr><td>Operators are bribed or collude</td><td>Random juries, bonds sized above what one ruling moves, audits</td><td><span class="str md">moderate, bounded by bond size</span></td></tr>
+        <tr><td>Poisoned or forged evidence</td><td>Pinned sources, challenges, safe defaults, caps per ruling</td><td><span class="str lo">weak; fooled every model in our test</span></td></tr>
+        <tr><td>Prompt injection hidden in evidence</td><td>Harness guardrails label evidence as material, never instructions</td><td><span class="str md">moderate</span></td></tr>
+        <tr><td>A market position steers a resolution</td><td>Sources named in advance and snapshotted; jurors never see the price</td><td><span class="str md">moderate</span></td></tr>
+        <tr><td>A compromised harness signs a bad trigger</td><td>Triggers need a quorum signature; one harness can't fire one alone</td><td><span class="str hi">strong</span></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s12">
+  <div class="gut"><span class="docket">§ 12</span><span class="lbl">Step through a block</span></div>
+  <div class="body">
+    <h2 id="s12">One block, four requests</h2>
+    <div class="block" id="demo" aria-label="Example block, scripted">
+      <div class="bhead"><span class="h num">Block 48,211</span><span class="meta num">4 requests · 5 harnesses each · bar set per contract</span><span class="meta">Example data, scripted</span></div>
+      <div class="stages" id="stages" role="list"></div>
+      <div class="bgrid"><div class="txs" id="txs"></div><div class="detail" id="detail" aria-live="polite"></div></div>
+      <div class="ctl"><button class="btn" id="next">Next stage</button><button class="btn ghost" id="run">Run the block</button><button class="btn ghost" id="reset">Reset</button><span class="note" id="note"></span></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s13">
+  <div class="gut"><span class="docket">§ 13</span><span class="lbl">Open problems</span></div>
+  <div class="body">
+    <h2 id="s13">Why this is a concept and not a network</h2>
+    <div class="probs">
+      <div class="prob"><h3>Proof of which model ran</h3><p>Proofs exist for one open model today. Until more can be proven, trust rests on bonds and audits.</p></div>
+      <div class="prob"><h3>Evidence you can't trust</h3><p>A jury is only as good as what it reads. Forged sources remain the weakest point.</p></div>
+      <div class="prob"><h3>Liveness</h3><p>If several providers go down at once, juries can't reach quorum. The chain needs a fallback that holds rather than guesses.</p></div>
+      <div class="prob"><h3>Model drift</h3><p>A model update can read the same words differently. Harnesses pin versions, and the network needs a rule for retiring them.</p></div>
+      <div class="prob"><h3>Who makes the models</h3><p>Anyone can run a harness, but a few labs make the strongest models. That is a new kind of centralization to design around.</p></div>
+      <div class="prob"><h3>Setting the bar</h3><p>Too low and wrong rulings pass; too high and nothing settles. Each market will need its own number.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="sr" id="roadmap">
+  <div class="gut"><span class="docket">§ 14</span><span class="lbl">Roadmap</span></div>
+  <div class="body">
+    <h2 id="sr">From a local prototype to an open network</h2>
+    <p class="lead">The harness is open source at <a href="https://github.com/Verafyai/verafyHarness">Verafyai/verafyHarness</a>, built on DeepSeek Harness. Each milestone ends with a check anyone can run.</p>
+    <div class="road">
+      <div class="ms"><span class="st done">1 · done</span><div><h3>Local prototype</h3><p>The contract format, pinned context, commit-reveal votes, close-enough agreement, the contract runtime, jury draws across labs, payment routers and Proof of Judgment blocks. Five example contracts seal five blocks.</p></div></div>
+      <div class="ms"><span class="st done">2 · done</span><div><h3>Juror mode inside DeepSeek Harness</h3><p>Five DeepSeek Harness processes on five labs' models (Claude Haiku 4.5, GPT-5 mini, Gemini 2.5 Flash, Llama 4 Maverick, Qwen3 235B) all ruled NO at 100% agreement against an 80% bar, and the block sealed from their reveals. Every tool other than the two juror tools was denied.</p></div></div>
+      <div class="ms"><span class="st next">3 · next</span><div><h3>Live juries</h3><p>100 live rulings across market resolution, fact checking, forecasting and triggers, with measured cost and latency, audits, challenges and a fast lane.</p></div></div>
+      <div class="ms"><span class="st later">4</span><div><h3>A network of harnesses</h3><p>Ten independently run harnesses on five or more labs' models, with gossip, storage, bonds and slashing, sealing blocks on a test network for a week.</p></div></div>
+      <div class="ms"><span class="st later">5</span><div><h3>Solana integration</h3><p>A devnet prediction market resolved by a harness jury and settled by a quorum-signed call, in line with the draft SIMDs.</p></div></div>
+      <div class="ms"><span class="st later">6</span><div><h3>Proofs of inference</h3><p>A ruling sealed with a verified proof for every counted vote, once proofs are practical for more models.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="swhy" id="why">
+  <div class="gut"><span class="docket">§ 14a</span><span class="lbl">Why</span></div>
+  <div class="body">
+    <h2 id="swhy">Built to stand on its own</h2>
+    <p class="lead">Verafy Chain is being built without venture capital and without a token, so the idea has to stand on its own. If it works, other people will copy it, and they are welcome to. Everything is MIT licensed. The goal is a prototype that is useful: a way for any contract, on any chain, to get a decision it can't make in code.</p>
+    <p class="lead">There is no foundation. There is no UAE entity. There is no BVI company hidden somewhere. It is just a project. Come test it. We are having fun again.</p>
+    <p class="lead"><a href="https://harness.verafy.ai/testnet">Try the local devnet</a> &nbsp; <a href="https://harness.verafy.ai/run">Run a harness</a> &nbsp; <a href="https://github.com/Verafyai/verafyHarness">Read the code</a></p>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s14" style="border-bottom:0">
+  <div class="gut"><span class="docket">§ 15</span><span class="lbl">Where to start</span></div>
+  <div class="body">
+    <h2 id="s14">The near-term version runs on Solana</h2>
+    <p class="lead">Three draft SIMDs propose inference programs, evaluator attestations, and rulings with disputes and challenges, as ordinary programs on today's Solana. A harness is a natural way to run an evaluator there too. Verafy Chain is where the idea goes if you take it all the way.</p>
+    <p class="lead"><a href="https://harness.verafy.ai">Run the harness</a> &nbsp; <a href="https://asc.verafy.ai">Read the SIMDs</a> &nbsp; <a href="https://blog.verafy.ai/articles/20261105-simd-verifiable-inference">Bringing Inference Programs To Solana</a> &nbsp; <a href="https://github.com/solana-foundation/solana-improvement-documents/discussions/724">Discussion #724</a></p>
+  </div>
+</section>
+</main>
+
+<footer class="wrap foot">
+  <p>Verafy Chain is a Verafy research concept. Nothing on this page runs, and there is no token. The animation and the example block are scripted.</p>
+  <p>The validator is <a href="https://harness.verafy.ai">Verafy Harness</a>. Code: <a href="https://github.com/Verafyai/verafyHarness">Verafyai/verafyHarness</a> and <a href="https://github.com/Verafyai/verafyChain">Verafyai/verafyChain</a>, MIT.</p>
+</footer>
+
+<script>
+(function(){
+  var NS='http://www.w3.org/2000/svg';
+  function el(n,a,p){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+  var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var FAM=['Claude','GPT','Gemini','Llama','Qwen'];
+
+  /* ---------- hero ---------- */
+  var SC=[
+    {kind:'Question',text:'Did the bill pass by Nov 30?',contract:'market resolver',votes:[1,1,1,1,1],agree:.94,th:.8,out:'Resolve NO',trig:'calls market.settle(NO) on Solana'},
+    {kind:'Forecast',text:'Chance of a March rate cut?',contract:'forecast pool',votes:[1,1,1,0,1],agree:.81,th:.7,out:'0.62, settled',trig:'records forecast for scoring'},
+    {kind:'Intention',text:'Pay me if UA 1532 is 3h late.',contract:'delay cover',votes:[1,1,1,1,1],agree:1,th:.7,out:'Pay the claim',trig:'calls delay_cover.settle() on Solana'},
+    {kind:'Claim',text:'Did the CEO say revenue doubled?',contract:'fact-check desk',votes:[1,0,1,0,1],agree:.6,th:.7,out:'Below the bar',trig:'escalates to a 9-harness jury'}
+  ];
+  var PH=[['ASK','Someone writes an intention in words and funds it.','Compressed: a short instruction plus pinned context.'],
+          ['COMMIT','Five harnessed validators, one per lab, lock in hidden votes.','Each harness loads context, checks hashes, and runs its model.'],
+          ['REVEAL','The votes open. Agreement is measured against the bar.','No harness could see another’s vote before committing.'],
+          ['RULE','Close enough? The ruling clears the bar or goes to a bigger jury.',''],
+          ['SEAL','The ruling becomes the block. The harnesses run the contract.','Escrow pays the jurors who ruled.']];
+  var cardsG=document.getElementById('cards'),juryG=document.getElementById('jury'),chainG=document.getElementById('chain'),coinsG=document.getElementById('coins');
+  var cards=[];
+  SC.forEach(function(s,i){
+    var g=el('g',{transform:'translate(40,'+(120+i*76)+')'},cardsG);
+    var r=el('rect',{width:300,height:62,rx:2,fill:'var(--paper)',stroke:'var(--rule)'},g);
+    el('text',{x:14,y:22,'font-family':'JetBrains Mono, monospace','font-size':11,fill:'var(--mute)','letter-spacing':1},g).textContent=s.kind.toUpperCase();
+    el('text',{x:14,y:46,fill:'var(--ink)'},g).textContent=s.text;
+    cards.push({g:g,r:r});
+  });
+  var nodes=[];
+  FAM.forEach(function(f,i){
+    var a=-Math.PI/2+i*2*Math.PI/5,x=598+Math.cos(a)*165,y=272+Math.sin(a)*118;
+    el('line',{x1:598,y1:272,x2:x,y2:y,stroke:'var(--rule)','stroke-width':1.5},juryG);
+    var o=el('rect',{x:x-62,y:y-34,width:124,height:68,rx:3,fill:'var(--sheet)',stroke:'var(--rule)','stroke-width':1.5},juryG);
+    el('text',{x:x-52,y:y-17,'font-family':'JetBrains Mono, monospace','font-size':9.5,fill:'var(--mute)','letter-spacing':1},juryG).textContent='HARNESS';
+    var m=el('rect',{x:x-52,y:y-10,width:104,height:22,rx:2,fill:'var(--paper)',stroke:'var(--rule)'},juryG);
+    el('text',{x:x,y:y+5,'text-anchor':'middle','font-family':'Archivo, Arial, sans-serif','font-weight':700,'font-size':13,fill:'var(--ink)'},juryG).textContent=f;
+    var v=el('text',{x:x,y:y+28,'text-anchor':'middle','font-family':'JetBrains Mono, monospace','font-size':11,fill:'var(--mute)'},juryG);
+    nodes.push({o:o,m:m,v:v,x:x,y:y});
+  });
+  var blocks=[];
+  function addBlock(s,n){
+    var pass=s.agree>=s.th,g=el('g',{},chainG);
+    el('rect',{x:0,y:-34,width:160,height:46,rx:2,fill:pass?'var(--accent-soft)':'var(--paper)',stroke:pass?'var(--accent)':'var(--hold)'},g);
+    el('text',{x:10,y:-15,fill:'var(--ink)','font-weight':600},g).textContent='Block '+n;
+    el('text',{x:10,y:3,fill:'var(--mute)','font-size':11},g).textContent=pass?s.out:'held, re-jury';
+    blocks.unshift(g);
+    blocks.forEach(function(b,i){b.setAttribute('transform','translate('+(180+i*180)+',600)');b.style.opacity=i>4?0:1});
+    if(blocks.length>6)chainG.removeChild(blocks.pop());
+  }
+  var si=0,ph=0,height=48210,paused=false;
+  var q=function(id){return document.getElementById(id)};
+  q('mFill').style.transition='width .9s ease';
+  function setPhase(){
+    var s=SC[si],pass=s.agree>=s.th;
+    q('hStep').textContent=(ph+1)+' / 5  '+PH[ph][0];
+    q('hCap').textContent=PH[ph][1];
+    q('hCap2').textContent=ph===3?(pass?Math.round(s.agree*100)+'% agree against a bar of '+Math.round(s.th*100)+'%. Final.':Math.round(s.agree*100)+'% is short of '+Math.round(s.th*100)+'%. A larger jury rules next block.'):ph===4&&pass?s.trig.charAt(0).toUpperCase()+s.trig.slice(1)+'. Escrow pays the jurors.':PH[ph][2]||' ';
+    cards.forEach(function(c,i){c.r.setAttribute('stroke',i===si?'var(--accent)':'var(--rule)');c.r.setAttribute('stroke-width',i===si?2:1);c.g.style.opacity=i===si?1:.5});
+    q('mQ').textContent=s.text;q('mKind').textContent='contract: '+s.contract;
+    var thx=879+264*s.th;q('mTh').setAttribute('x1',thx);q('mTh').setAttribute('x2',thx);q('mThT').setAttribute('x',thx);q('mThT').textContent='bar '+Math.round(s.th*100)+'%';
+    nodes.forEach(function(n,i){
+      n.o.setAttribute('stroke',ph>=1?'var(--accent)':'var(--rule)');
+      n.m.setAttribute('fill',ph>=2?(s.votes[i]?'var(--accent-soft)':'var(--paper)'):'var(--paper)');
+      n.v.textContent=ph===0?'idle':ph===1?'locked':(s.votes[i]?'agrees':'dissents');
+      n.v.setAttribute('fill',ph>=2&&!s.votes[i]?'var(--hold)':'var(--mute)');
+    });
+    if(ph>=2){q('mFill').setAttribute('width',262*s.agree);q('mFill').setAttribute('fill',pass?'var(--allow)':'var(--hold)');q('mVal').textContent=Math.round(s.agree*100)+'%'}
+    else{q('mFill').setAttribute('width',0);q('mVal').textContent='0%'}
+    q('mRes').textContent=ph>=3?(pass?'clears the bar':'below the bar'):'agreement';
+    q('mRes').setAttribute('fill',ph>=3?(pass?'var(--allow)':'var(--hold)'):'var(--mute)');
+    q('mOut').textContent=ph>=3?s.out:' ';
+    q('mTrig').textContent=ph>=4?s.trig:' ';
+    q('hubTxt').textContent=['waiting','commits in','votes open',pass?Math.round(s.agree*100)+'% agree':'re-jury','sealed'][ph];
+    while(coinsG.firstChild)coinsG.removeChild(coinsG.firstChild);
+    if(ph===4){
+      height++;addBlock(s,height.toLocaleString('en-US'));
+      if(pass)nodes.forEach(function(n,i){if(!s.votes[i])return;
+        var c=el('circle',{cx:260,cy:590,r:7,fill:'var(--allow)'},coinsG);
+        if(!reduce&&c.animate)c.animate([{transform:'translate(0,0)',opacity:1},{transform:'translate('+(n.x-260)+'px,'+(n.y+34-590)+'px)',opacity:.15}],{duration:1000,easing:'ease-out',fill:'forwards'});
+      });
+    }
+  }
+  [{out:'Resolve YES',agree:.9,th:.7},{out:'Pay the claim',agree:1,th:.7},{out:'0.41, settled',agree:.8,th:.7}].forEach(function(b){height++;addBlock(b,height.toLocaleString('en-US'))});
+  function tick(){if(paused)return;ph++;if(ph>4){ph=0;si=(si+1)%SC.length}setPhase()}
+  if(reduce){for(var k=0;k<SC.length;k++){si=k;ph=4;setPhase()}}
+  else{setPhase();setInterval(tick,1900)}
+  var pb=q('pause');
+  pb.onclick=function(){paused=!paused;pb.textContent=paused?'Play':'Pause';pb.setAttribute('aria-pressed',paused)};
+  if(reduce)pb.hidden=true;
+
+
+  /* ---------- ASC anatomy ---------- */
+  (function(){
+    var slots=q('aSlots'),right=q('aRight'),coins=q('aCoins');
+    function txt(x,y,t,a,p){var e=el('text',Object.assign({x:x,y:y,fill:'var(--ink)'},a||{}),p||slots);e.textContent=t;return e}
+    function slot(y,h,label){var g=el('g',{},slots);var r=el('rect',{x:60,y:y,width:580,height:h,rx:2,fill:'var(--sheet)',stroke:'var(--rule)'},g);txt(76,y+22,label,{fill:'var(--mute)','font-size':11,'letter-spacing':1.2},g);return {g:g,r:r}}
+    var S={ctx:slot(138,150,'1  CONTEXT'),q:slot(300,74,'2  QUESTION'),pay:slot(386,74,'3  PAYMENT'),ex:slot(472,108,'4  EXITS')};
+    var ctxItems=[['link','senate.gov roll call, snapshot Dec 1','a41c…9e'],['text','market rules, 1 page','77d0…12'],['policy','resolver policy v2','c3b8…f0']].map(function(c,i){
+      var g=el('g',{},S.ctx.g);el('rect',{x:76,y:172+i*36,width:548,height:28,rx:2,fill:'var(--paper)',stroke:'var(--rule)'},g);
+      txt(88,191+i*36,c[0].toUpperCase(),{fill:'var(--accent)','font-size':11,'letter-spacing':1},g);txt(150,191+i*36,c[1],{},g);txt(612,191+i*36,c[2],{'text-anchor':'end',fill:'var(--mute)','font-size':11},g);return g});
+    var qT=txt(76,356,'',{'font-family':'Source Serif 4, Georgia, serif','font-size':18},S.q.g);
+    var QTEXT='Did the bill pass the Senate by Nov 30?';
+    var payT=txt(76,442,'',{},S.pay.g);
+    var exits=[['YES','pay yes-holders'],['NO','pay no-holders'],['UNCLEAR','refund everyone']].map(function(e,i){
+      var g=el('g',{},S.ex.g);var r=el('rect',{x:76,y:504+i*24,width:548,height:20,rx:2,fill:'var(--paper)',stroke:'var(--rule)'},g);
+      txt(88,519+i*24,e[0],{'font-weight':600},g);txt(200,519+i*24,'→ '+e[1],{fill:'var(--mute)'},g);return {g:g,r:r}});
+    // right side
+    var pin=el('g',{},right);el('rect',{x:720,y:100,width:440,height:70,rx:2,fill:'var(--accent-soft)',stroke:'var(--accent)'},pin);
+    txt(740,128,'Pinned on chain',{'font-weight':600},pin);txt(740,152,'asc 9f3a…41c2 · escrow 1.20 USDC',{fill:'var(--mute)','font-size':12},pin);
+    var arrow=el('path',{d:'M940 172 V208',stroke:'var(--rule)','stroke-width':2,fill:'none'},right);
+    var jury=el('g',{},right),jn=[];
+    ['Claude','GPT','Gemini','Llama','Qwen'].forEach(function(f,i){var x=720+i*90;
+      var r=el('rect',{x:x,y:214,width:80,height:76,rx:3,fill:'var(--sheet)',stroke:'var(--rule)'},jury);
+      txt(x+40,234,'HARNESS',{'text-anchor':'middle',fill:'var(--mute)','font-size':9,'letter-spacing':1},jury);
+      txt(x+40,256,f,{'text-anchor':'middle','font-weight':600,'font-size':12},jury);
+      var v=txt(x+40,278,'',{'text-anchor':'middle',fill:'var(--mute)','font-size':11},jury);jn.push({r:r,v:v,x:x+40})});
+    var rul=el('g',{},right);el('rect',{x:720,y:320,width:440,height:110,rx:2,fill:'var(--paper)',stroke:'var(--rule)'},rul);
+    txt(740,350,'Ruling',{'font-weight':600},rul);var rT=txt(740,384,'',{'font-size':26,'font-weight':600},rul);var rT2=txt(740,412,'',{fill:'var(--mute)','font-size':12},rul);
+    var paid=el('g',{},right);el('rect',{x:720,y:460,width:440,height:120,rx:2,fill:'var(--paper)',stroke:'var(--rule)'},paid);
+    txt(740,490,'Exit runs in every harness',{'font-weight':600},paid);txt(740,516,'NO → pay no-holders',{fill:'var(--allow)'},paid);txt(740,542,'escrow → jurors who ruled',{fill:'var(--mute)','font-size':12},paid);txt(740,562,'calls market.settle(NO) on Solana',{fill:'var(--mute)','font-size':12},paid);
+    var CAP=['An Actually Smart Contract starts empty.','Context: links, text and a policy, each pinned by hash.','The question: what must be decided.','Payment: escrow for the jury, its size, and the bar to clear.','Exits: the only things the contract can do with an answer.','The contract is pinned and sent to five harnessed validators.','They rule NO. 94% agree against a bar of 80%.','The NO exit fires, and the escrow pays the jury.'];
+    var ap=0,apaused=false,typer;
+    function show(e,on){e.style.opacity=on?1:0;e.style.transition='opacity .5s'}
+    function set(){
+      q('aStep').textContent=Math.max(ap,1)+' / 7';q('aCap').textContent=CAP[ap];
+      ctxItems.forEach(function(g){show(g,ap>=1)});
+      clearInterval(typer);
+      if(ap===2&&!reduce){var n=0;qT.textContent='';typer=setInterval(function(){n++;qT.textContent=QTEXT.slice(0,n);if(n>=QTEXT.length)clearInterval(typer)},35)}else qT.textContent=ap>=2?QTEXT:'';
+      payT.textContent=ap>=3?'1.20 USDC in escrow · jury of 5, 5 labs · bar 80%':'';
+      exits.forEach(function(e,i){show(e.g,ap>=4);e.r.setAttribute('fill',ap>=7&&i===1?'var(--accent-soft)':'var(--paper)');e.r.setAttribute('stroke',ap>=7&&i===1?'var(--accent)':'var(--rule)')});
+      [S.ctx,S.q,S.pay,S.ex].forEach(function(s,i){s.r.setAttribute('stroke',ap===i+1?'var(--accent)':'var(--rule)');s.r.setAttribute('stroke-width',ap===i+1?2:1)});
+      q('aBox').setAttribute('stroke',ap>=5?'var(--accent)':'var(--rule)');
+      q('aHash').textContent=ap>=5?'pinned: asc 9f3a…41c2':' ';
+      show(pin,ap>=5);show(arrow,ap>=5);show(jury,ap>=5);show(rul,ap>=6);show(paid,ap>=7);
+      jn.forEach(function(n){n.r.setAttribute('stroke',ap>=5?'var(--accent)':'var(--rule)');n.v.textContent=ap===5?'locked':ap>=6?'NO':''});
+      rT.textContent=ap>=6?'NO, 94%':'';rT2.textContent=ap>=6?'bar 80%: final':'';
+      while(coins.firstChild)coins.removeChild(coins.firstChild);
+      if(ap===7)jn.forEach(function(n){var c=el('circle',{cx:300,cy:423,r:7,fill:'var(--allow)'},coins);
+        if(!reduce&&c.animate)c.animate([{transform:'translate(0,0)',opacity:1},{transform:'translate('+(n.x-300)+'px,'+(295-423)+'px)',opacity:.15}],{duration:1100,easing:'ease-out',fill:'forwards'})});
+    }
+    if(reduce){ap=7;set();q('aPause').hidden=true}
+    else{set();setInterval(function(){if(apaused)return;ap=(ap+1)%8;set()},1900)}
+    q('aPause').onclick=function(){apaused=!apaused;this.textContent=apaused?'Play':'Pause';this.setAttribute('aria-pressed',apaused)};
+  })();
+  /* ---------- network diagram ---------- */
+  var netG=q('net'),LABS=['Claude','GPT','Gemini','Llama','Qwen','Mistral'],jury=[2,7,9,13,16],aud=[4,11];
+  for(var i=0;i<18;i++){
+    var cx=290+(i%6)*92,cy=95+Math.floor(i/6)*95;
+    var onJ=jury.indexOf(i)>=0,onA=aud.indexOf(i)>=0;
+    el('rect',{x:cx-38,y:cy-26,width:76,height:52,rx:3,fill:onJ?'var(--accent)':'var(--sheet)',stroke:onA?'var(--hold)':onJ?'var(--accent)':'var(--rule)','stroke-width':onA?2:1.2},netG);
+    el('text',{x:cx,y:cy-6,'text-anchor':'middle','font-size':9,fill:onJ?'var(--accent-ink)':'var(--mute)','letter-spacing':1},netG).textContent='HARNESS';
+    el('text',{x:cx,y:cy+12,'text-anchor':'middle','font-size':12,'font-weight':600,fill:onJ?'var(--accent-ink)':'var(--ink)'},netG).textContent=LABS[(i*5+1)%6];
+  }
+
+  /* ---------- gauges ---------- */
+  var GA=[
+    {t:'Fact check: "the CEO said revenue doubled"',a:.85,th:.70,why:'4 of 5 graded it misleading; one graded it false, the adjacent grade'},
+    {t:'Market: "bill passes the Senate by Nov 30"',a:.94,th:.80,why:'5 of 5 resolved NO from the pinned roll call'},
+    {t:'Forecast: "rate cut in March"',a:.81,th:.70,why:'forecasts 0.55 to 0.68, median 0.62'},
+    {t:'Fact check: "the drug cut deaths by half"',a:.60,th:.70,why:'3 of 5 agree; goes to a 9-harness jury next block'}
+  ];
+  q('gauges').innerHTML=GA.map(function(g){var p=g.a>=g.th;
+    return '<div class="g '+(p?'pass':'fail')+'"><span class="t">'+g.t+'</span><span class="res num">'+Math.round(g.a*100)+'% vs '+Math.round(g.th*100)+'% bar, '+(p?'final':'short')+'</span><div class="bar"><div class="fill" style="width:'+(g.a*100)+'%"></div><div class="th" style="left:calc('+(g.th*100)+'% - 1px)"></div></div><span class="why">'+g.why+'</span></div>'}).join('');
+
+  /* ---------- block stepper ---------- */
+  var STG=[['Propose','requests gathered'],['Commit','hidden votes'],['Reveal','votes opened'],['Rule','agreement vs bar'],['Seal','contracts run']];
+  var TX=[
+    {id:'r1',what:'Resolve "Will the bill pass the Senate by Nov 30?"',sub:'market resolver · source: senate.gov roll call, snapshot Dec 1 · bar 80%',votes:['NO','NO','NO','NO','NO'],agree:94,th:80,label:'Resolve NO',pass:true,
+     reason:'The pinned snapshot shows no recorded vote before the deadline. No harness saw the market price.',seal:'The harnesses call market.settle(NO) on Solana with a quorum signature.'},
+    {id:'r2',what:'Forecast "Will the Fed cut rates in March?"',sub:'forecast pool · bar 70%',votes:['0.60','0.64','0.68','0.55','0.62'],agree:81,th:70,label:'0.62',pass:true,
+     reason:'Median 0.62. The spread is tight enough to clear the bar.',seal:'The forecast is recorded. Each harness is scored when March arrives.'},
+    {id:'r3',what:'Fact check "The CEO said revenue doubled"',sub:'fact-check desk · source: earnings call transcript · bar 70%',votes:['misleading','misleading','false','misleading','misleading'],agree:85,th:70,label:'Misleading',pass:true,
+     reason:'Revenue doubled in one segment, not overall. One harness graded it false, the adjacent grade, and is recorded as a dissent.',seal:'The graded verdict is published with its sources and the dissent.'},
+    {id:'r4',what:'Fact check "The drug cut deaths by half"',sub:'fact-check desk · source: trial summary · bar 70%',votes:['true','misleading','true','misleading','true'],agree:60,th:70,label:'Below bar',pass:false,
+     reason:'Three found it supported, two found it overstated for the trial population. 60% is short of 70%.',seal:'Nothing is sealed. The escrow carries over to fund a 9-harness jury next block.'}
+  ];
+  var st=4,sel=0,tmr;
+  function hex(n){var s='';for(var i=0;i<8;i++)s+='0123456789abcdef'[(n*7+i*13+n*i)%16];return s}
+  function render(){
+    q('stages').innerHTML=STG.map(function(s,i){return '<div role="listitem" class="stage'+(i===st?' on':i<st?' done':'')+'"><b>'+s[0]+'</b>'+s[1]+'</div>'}).join('');
+    q('txs').innerHTML=TX.map(function(t,i){
+      var p=st>=3?'<span class="pill '+(t.pass?'allow':'hold')+'">'+t.label+'</span>':'<span class="pill">'+['queued','committed','revealed'][st]+'</span>';
+      return '<button class="tx'+(i===sel?' sel':'')+'" data-i="'+i+'"><span class="id num">'+t.id+'</span><span class="what">'+t.what+'<small>'+t.sub+'</small></span>'+p+'</button>'}).join('');
+    [].forEach.call(q('txs').children,function(b){b.onclick=function(){sel=+b.dataset.i;render()}});
+    var t=TX[sel],h='<span class="lbl">Jury of harnesses</span><div class="jury">';
+    FAM.forEach(function(f,i){h+='<div class="ev"><span class="h">HARNESS</span><span class="f">'+f+'</span><span class="v">'+(st===0?'waiting':st===1?'commit '+hex(i+sel*5+1):t.votes[i])+'</span></div>'});
+    h+='</div>';
+    if(st>=3)h+='<div class="ruling"><span class="k num">Agreement '+t.agree+'% · bar '+t.th+'% · '+(t.pass?'final':'escalates')+'</span>'+t.reason+'</div>';
+    if(st>=4)h+='<div class="ruling"><span class="k">Sealed in block 48,211</span>'+t.seal+'</div>';
+    q('detail').innerHTML=h;
+    q('next').disabled=st===4;
+    q('note').textContent=['Funded requests are gathered for the next block.','Each harness commits a hash of its vote, so none can copy another.','Votes are opened and checked against the commitments.','Agreement is compared with each contract’s bar.','The block seals and each harness runs the contracts for the outcomes.'][st];
+  }
+  q('next').onclick=function(){clearInterval(tmr);if(st<4){st++;render()}};
+  q('reset').onclick=function(){clearInterval(tmr);st=0;render()};
+  q('run').onclick=function(){clearInterval(tmr);st=0;render();if(reduce){st=4;render();return}
+    tmr=setInterval(function(){if(st<4){st++;render()}else clearInterval(tmr)},1100)};
+  render();
+})();
+</script>
+</body>
+</html>

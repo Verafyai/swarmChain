@@ -1,0 +1,46 @@
+{
+  "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/run",
+      "destination": "https://harness.verafy.ai/run",
+      "permanent": true
+    },
+    {
+      "source": "/testnet",
+      "destination": "https://harness.verafy.ai/testnet",
+      "permanent": true
+    },
+    {
+      "source": "/coin-agnostic",
+      "destination": "https://harness.verafy.ai/coin-agnostic",
+      "permanent": true
+    },
+    {
+      "source": "/run.html",
+      "destination": "https://harness.verafy.ai/run",
+      "permanent": true
+    },
+    {
+      "source": "/testnet.html",
+      "destination": "https://harness.verafy.ai/testnet",
+      "permanent": true
+    },
+    {
+      "source": "/coin-agnostic.html",
+      "destination": "https://harness.verafy.ai/coin-agnostic",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "swarmchain.verafy.ai"
+        }
+      ],
+      "destination": "https://chain.verafy.ai/:path*",
+      "permanent": true
+    }
+  ]
+}
