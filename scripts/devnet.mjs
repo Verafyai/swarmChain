@@ -24,8 +24,11 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('verafyharness/package.json'))
-const NODES = [1, 2, 3].map(i => ({ id: `node-${i}`, url: `http://127.0.0.1:${7100 + i}`, port: 7100 + i }))
-const HARNESSES = ['h-anthropic-1', 'h-openai-1', 'h-google-1', 'h-meta-1', 'h-qwen-1'].map((id, i) => ({ id, port: 7201 + i }))
+// Base ports can be moved, so a devnet can run beside one that is already up.
+const NODE_BASE = Number(process.env.DEVNET_NODE_PORT ?? 7100)
+const HARNESS_BASE = Number(process.env.DEVNET_HARNESS_PORT ?? 7201)
+const NODES = [1, 2, 3].map(i => ({ id: `node-${i}`, url: `http://127.0.0.1:${NODE_BASE + i}`, port: NODE_BASE + i }))
+const HARNESSES = ['h-anthropic-1', 'h-openai-1', 'h-google-1', 'h-meta-1', 'h-qwen-1'].map((id, i) => ({ id, port: HARNESS_BASE + i }))
 const EXAMPLES = ['market-resolution', 'fact-check', 'forecast', 'delay-cover', 'fact-check-escalation']
 const verbose = process.argv.includes('--verbose')
 const children = []

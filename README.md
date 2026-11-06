@@ -72,7 +72,7 @@ npm run devnet    # three nodes, five harnesses, five example contracts, five bl
 npm cannot install one folder of a git repository, so `package.json` depends on the whole verafyHarness repo at a pinned commit and maps `#core` to the core package inside it:
 
 ```json
-"dependencies": { "verafyharness": "github:Verafyai/verafyHarness#d69633b" },
+"dependencies": { "verafyharness": "github:Verafyai/verafyHarness#d6b18d8" },
 "imports": { "#core": "verafyharness/packages/core/src/index.js" }
 ```
 
