@@ -176,6 +176,15 @@ td.k{color:var(--mute)}
 .prob p{font-size:16.5px;color:var(--mute)}
 .foot{padding-block:36px 56px;font-size:15px;color:var(--mute);display:flex;flex-direction:column;gap:8px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.genesis{background:var(--sheet);border:1px solid var(--rule);border-top:3px solid var(--accent);border-radius:3px}
+.ghead{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:baseline;padding:16px 20px;border-bottom:1px solid var(--rule)}
+.ghead .h{font-family:var(--display);font-weight:800;font-size:24px;font-stretch:85%}
+.ghead .meta{font-family:var(--mono);font-size:13px;color:var(--mute)}
+.ghead .pill{margin-left:auto}
+.articles{margin:0;padding:18px 20px 6px 48px;display:flex;flex-direction:column;gap:10px;font-size:17px;max-width:46em}
+.articles li::marker{font-family:var(--mono);color:var(--accent);font-size:14px}
+.gfoot{padding:12px 20px 18px;font-size:16px;color:var(--mute);border-top:1px solid var(--rule);margin-top:12px}
 </style>
 <link rel="icon" href="/logo.svg" type="image/svg+xml">
 <link rel="canonical" href="https://chain.verafy.ai/">
@@ -203,6 +212,7 @@ td.k{color:var(--mute)}
   <a class="brand" href="/"><svg class="mark" viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><line x1="16" y1="16" x2="16.00" y2="5.00" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="26.46" y2="12.60" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="22.47" y2="24.90" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="9.53" y2="24.90" stroke="currentColor" stroke-width="1.2" opacity=".45"/><line x1="16" y1="16" x2="5.54" y2="12.60" stroke="currentColor" stroke-width="1.2" opacity=".45"/><circle cx="16" cy="16" r="5.2" fill="var(--accent)"/><rect x="12.80" y="1.80" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="23.26" y="9.40" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="19.27" y="21.70" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="6.33" y="21.70" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/><rect x="2.34" y="9.40" width="6.4" height="6.4" rx="1" fill="var(--sheet)" stroke="currentColor" stroke-width="1.6"/></svg>Verafy Chain</a>
   <nav class="tabs" aria-label="Verafy Chain and Verafy Harness">
     <a href="/" aria-current="page">Verafy Chain</a>
+    <a href="/constitution">Constitution</a>
     <a href="https://harness.verafy.ai">Verafy Harness</a>
     <a href="https://harness.verafy.ai/run">Run a harness</a>
     <a href="https://harness.verafy.ai/testnet">Testnet</a>
@@ -270,6 +280,34 @@ td.k{color:var(--mute)}
       <text x="1160" y="655" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="12" fill="var(--mute)">verafy.ai</text>
     </svg>
     <div class="filmbar"><span>16:9, fixed frame. Loops through four rulings.</span><button id="pause" aria-pressed="false">Pause</button></div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="s0" id="ethics">
+  <div class="gut"><span class="docket">§ 0</span><span class="lbl">Constitution</span></div>
+  <div class="body">
+    <h2 id="s0">Block 0 is a constitution, with its ethics embedded</h2>
+    <p class="lead">The first block of Verafy Chain holds its constitution and its Embedded Ethics, written in words and built into the chain itself. It is meant to be ratified by the first jury consensus: harnesses running models from several labs rule on it the same way they rule on any contract, and it seals only if they clear the bar.</p>
+    <div class="genesis">
+      <div class="ghead"><span class="h">Block 0</span><span class="meta">Genesis. Constitution and Embedded Ethics.</span><span class="pill hold">Draft. Not sealed.</span></div>
+      <ol class="articles">
+        <li><b>No foundation.</b></li>
+        <li><b>No venture capital.</b></li>
+        <li><b>No coin.</b> Verafy Chain never mints, launches or sells a token. Contracts pay in coins that already exist.</li>
+        <li><b>No fundraising.</b></li>
+        <li><b>No secret engineering team.</b> The work happens in public, in open repositories.</li>
+        <li><b>No community fund</b> to be captured or corrupted.</li>
+        <li><b>No treasury.</b></li>
+        <li><b>All governance follows this written constitution</b> and is judged by a panel of agents.</li>
+        <li><b>Every governance change passes the constitution check, then the ethics check,</b> before it is judged on its merits.</li>
+        <li><b>Disputes and amendments</b> go to a panel of agents and are judged against this constitution. An amendment is appended as a new ruling. Block 0 itself is never edited.</li>
+      </ol>
+      <p class="gfoot">This is a draft. Once a jury seals it, it governs the chain from that block forward, and every governance question, dispute and amendment follows from it.</p>
+    </div>
+    <div class="two">
+      <div class="col"><h3>Embedded Ethics</h3><p>An ethics gate screens every contract and every governance proposal before it can enter a block. A panel of agents from several labs allows, refuses or escalates, and doubt resolves toward refusal. Harm to children, violence markets, weapons of mass harm, targeting private people, fraud and laundering are never allowed. <span class="tag mo">planned</span></p></div>
+      <div class="col"><h3>Read the draft</h3><p>The full constitution: six articles, the Embedded Ethics with what is allowed, never allowed and judged case by case, and how ratification works.</p><p><a href="/constitution">The Verafy Chain Constitution</a></p></div>
+    </div>
   </div>
 </section>
 
