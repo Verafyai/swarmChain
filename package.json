@@ -1,0 +1,20 @@
+{
+  "name": "swarmchain",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Swarm Chain: a chain whose blocks are rulings by juries of harnessed AI validators. Concept and prototype.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22.13" },
+  "imports": {
+    "#core": "swarmharness/packages/swarm-core/src/index.js"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "devnet": "node scripts/devnet.mjs",
+    "node": "node packages/node/bin/swarmchain-node.mjs"
+  },
+  "dependencies": {
+    "swarmharness": "github:Verafyai/swarmHarness#8a0ab46"
+  }
+}
