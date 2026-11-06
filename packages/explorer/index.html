@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swarm Chain Explorer</title>
+<style>
+  :root { --bg: #0b0b0b; --fg: #e8e8e8; --dim: #8a8a8a; --rule: #2a2a2a; --signal: #ff4b3e; }
+  body { background: var(--bg); color: var(--fg); font: 15px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0; padding: 24px 16px; }
+  main { max-width: 72rem; margin: 0 auto; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 32px 0 8px; }
+  p.note { color: var(--dim); margin: 0 0 16px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--rule); vertical-align: top; }
+  th { color: var(--dim); font-weight: normal; }
+  td.num { color: var(--signal); }
+  .hash { word-break: break-all; }
+  input { background: var(--bg); color: var(--fg); border: 1px solid var(--rule); padding: 4px 8px; font: inherit; width: 22rem; max-width: 100%; }
+  .wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Swarm Chain Explorer</h1>
+  <p class="note">Concept and prototype. Not a running network, no token, not audited. Reads a node's API.</p>
+  <label>API <input id="api" spellcheck="false"></label>
+  <h2>Blocks</h2>
+  <div class="wrap"><table id="blocks"><thead><tr><th>Height</th><th>Hash</th><th>Sealer</th><th>Contract</th><th>Outcome</th></tr></thead><tbody></tbody></table></div>
+  <h2>Rulings</h2>
+  <div class="wrap"><table id="rulings"><thead><tr><th>Contract</th><th>Answer</th><th>Agreement</th><th>Bar</th><th>Votes</th><th>Dissent</th><th>Review</th></tr></thead><tbody></tbody></table></div>
+  <h2>Harnesses</h2>
+  <div class="wrap"><table id="harnesses"><thead><tr><th>Harness</th><th>Lab</th><th>Model</th><th>Counted</th><th>Dissents</th><th>Earned</th></tr></thead><tbody></tbody></table></div>
+</main>
+<script>
+  const params = new URLSearchParams(location.search)
+  const input = document.getElementById('api')
+  input.value = params.get('api') || (location.protocol.startsWith('http') ? location.origin : 'http://127.0.0.1:7101')
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+  const pct = x => Math.round(x * 100) + '%'
+  function rows(id, items, cells) {
+    document.querySelector(`#${id} tbody`).innerHTML = items.map(x => '<tr>' + cells(x).map(([v, cls]) => `<td class="${cls || ''}">${esc(v)}</td>`).join('') + '</tr>').join('')
+  }
+  async function load() {
+    const api = input.value.replace(/\/$/, '')
+    try {
+      const [blocks, rulings, harnesses] = await Promise.all(['/blocks?full=1', '/rulings', '/harnesses'].map(p => fetch(api + p).then(r => r.json())))
+      rows('blocks', blocks.slice().reverse(), b => [[b.height, 'num'], [b.hash, 'hash'], [b.sealer], [b.rulings.map(r => r.asc).join(', ')], [b.rulings.map(r => r.passed ? r.exit : 'below the bar').join(', ')]])
+      rows('rulings', rulings.slice().reverse(), r => [[r.asc], [r.answer], [pct(r.agreement), 'num'], [pct(r.bar)], [r.votes, 'num'], [r.dissent, 'num'], [r.review.status]])
+      rows('harnesses', harnesses, h => [[h.id], [h.lab], [h.model], [h.counted, 'num'], [h.dissents, 'num'], [h.earned, 'num']])
+    } catch (err) {
+      document.querySelector('#blocks tbody').innerHTML = `<tr><td colspan="5">Cannot reach ${esc(api)}: ${esc(err.message)}</td></tr>`
+    }
+  }
+  input.addEventListener('change', load)
+  load()
+  setInterval(load, 3000)
+</script>
+</body>
+</html>
