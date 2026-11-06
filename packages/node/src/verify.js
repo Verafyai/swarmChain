@@ -1,8 +1,8 @@
 /**
  * Block verification. Every node runs this on every block, including the ones
- * it seals itself. Every hash, signature, reveal, agreement and diff check is a
- * call into `@verafyharness/core`; what lives here is the order of checks and the
- * chain's design rules:
+ * it seals itself. Every hash, signature, reveal, agreement, pay and diff check
+ * is a call into `@verafyharness/core`; what lives here is the order of checks,
+ * a stable rejection code for each, and the chain's design rules:
  *
  *   no empty blocks              a block exists only when a jury rules
  *   proofs stay off chain        a block may carry proof hashes, never proofs
@@ -14,21 +14,24 @@
  *   diffs conserve               checked by core's `conserves`
  *   every counted vote paid      dissent included; below the bar, nobody is paid
  *                                and the escrow carries to the escalated jury
+ *   core agrees                  core's `verifyRuling` re-runs the ruling from its round
  *   rulings append-only          a challenge appends affirm, overturn or supersede
  *
  * @module swarmchain/node/verify
  */
 import {
-  sha256, canonical, ascHash as hashAsc, validate, loadContext, drawJury,
-  verifyMessage, checkReveal, conserves, rule, BELOW_BAR,
+  sha256, canonical, ascHash as hashAsc, validate, loadContext, drawJuryFor, eligibleJurors,
+  verifyMessage, checkCommit, checkRevealRecord, conserves, checkPay, accountFor, verifyRuling,
+  blockHeader, rulingId, resolveChallenge, appendReview, BELOW_BAR, CHALLENGE_KIND, GROUNDS,
 } from '#core'
-import { replayJuror } from './jury.js'
+
+export { rulingId, GROUNDS }
 
 /** The parent hash of the first block, as core's `seal` writes it. */
 export const GENESIS = '0'.repeat(64)
 
-/** Grounds a challenge may state, from the draft rulings SIMD. */
-export const GROUNDS = ['new-evidence', 'false-evidence', 'error', 'changed-rules']
+/** How far ahead of a verifier's clock a block's time may be. */
+export const MAX_CLOCK_SKEW_MS = 60_000
 
 export class BlockRejected extends Error {
   /**
@@ -44,22 +47,25 @@ export class BlockRejected extends Error {
 const reject = (code, message) => { throw new BlockRejected(code, message) }
 
 /**
- * The header fields core's `seal` hashes and signs.
- * @param {object} block - a block.
- * @returns {object} its header.
+ * The account a node is paid into as sealer.
+ * @param {string} nodeId - the sealing node's id.
+ * @returns {string} `node:<id>`.
  */
-export function headerOf(block) {
-  const { height, parent, rulingsRoot, sealer, time } = block
-  return { height, parent, rulingsRoot, sealer, time }
+export function sealerAccount(nodeId) {
+  return accountFor({ id: nodeId, kind: 'node' })
 }
 
 /**
- * A ruling's id: the SHA-256 of its envelope.
- * @param {object} envelope - the ruling as sealed.
- * @returns {string} SHA-256 hex.
+ * The seal time for the next block: the sealer's clock, but always after the
+ * parent's time. The sealer passes it to core's `seal`, so any node rebuilds the
+ * header from the block alone.
+ * @param {{time: string} | null} parent - the tip.
+ * @param {number} [now] - the sealer's clock, in ms.
+ * @returns {string} ISO time.
  */
-export function rulingId(envelope) {
-  return sha256(envelope)
+export function sealTime(parent, now = Date.now()) {
+  const after = parent ? Date.parse(parent.time) + 1 : 0
+  return new Date(Math.max(now, after)).toISOString()
 }
 
 /**
@@ -74,15 +80,29 @@ export function expectedSealer(validators, height) {
 }
 
 /**
- * Harnesses eligible for a contract's jury: those whose bond covers the most
- * value one vote can decide. Both the sealer and every verifier draw from this pool.
- * @param {object[]} cards - registered harness cards.
- * @param {object} asc - the contract.
- * @returns {object[]} the eligible cards, in the order given.
+ * Chain checks on a challenge contract (core's `challengeContract` format), run
+ * in the mempool and again on every block: the ruling it names is on chain, is
+ * for the contract it says, cleared the bar, and none of its jurors sits on the
+ * challenge jury, which is at least as large.
+ * @param {object} asc - the challenge contract (it has `review`).
+ * @param {(id: string) => ({ruling: object} | null)} lookup - a sealed ruling by id.
+ * @returns {string | null} the problem, or null.
  */
-export function eligible(cards, asc) {
-  const min = asc.payment.maxValuePerVote ?? 0
-  return cards.filter(c => c.bond >= min)
+export function challengeProblem(asc, lookup) {
+  const r = asc.review
+  if (r?.kind !== CHALLENGE_KIND) return `review.kind must be "${CHALLENGE_KIND}"`
+  if (!GROUNDS.includes(r.grounds)) return `unknown grounds "${r.grounds}"`
+  const target = lookup(r.ruling)
+  if (!target) return `challenged ruling ${r.ruling} is not on chain`
+  const original = target.ruling
+  if (original.ascHash !== r.ascHash) return 'challenge names the wrong contract for that ruling'
+  if (!original.passed) return 'a ruling below the bar escalates; it cannot be challenged'
+  const jury = asc.payment.jury
+  const excluded = new Set(jury.excludeHarnesses ?? [])
+  const sat = original.round.jury.map(c => c.id).filter(id => !excluded.has(id))
+  if (sat.length) return `the challenge jury must exclude the original jurors (${sat.join(', ')})`
+  if (jury.size < original.round.jury.length) return 'a challenge jury is at least as large as the original'
+  return null
 }
 
 /**
@@ -94,10 +114,12 @@ export function eligible(cards, asc) {
  * @param {Map<string, object>} ctx.harnesses - harness id to registered card.
  * @param {(h: string) => ({entry: object, asc: object} | null)} ctx.contract - a mempool entry with its context bytes attached.
  * @param {(id: string) => (object | null)} ctx.ruling - a sealed ruling by id.
+ * @param {(id: string) => object[]} ctx.reviews - a sealed ruling's review log, oldest first.
  * @param {(h: string, harness: string) => (string | undefined)} [ctx.seenCommitment] - a commitment this node saw in gossip.
- * @returns {Promise<{rulings: {id: string, ruling: object}[], reviews: object[], settlements: object[]}>} what to append.
+ * @param {number} [ctx.now] - this node's clock, in ms.
+ * @returns {{rulings: {id: string, ruling: object}[], reviews: object[], settlements: object[]}} what to append.
  */
-export async function verifyBlock(block, ctx) {
+export function verifyBlock(block, ctx) {
   if (!Array.isArray(block?.rulings) || block.rulings.length === 0) reject('empty', 'a block exists only when a jury rules; this one has no rulings')
   const proofAt = findKey(block, k => k === 'proof' || k === 'proofs')
   if (proofAt) reject('proof-on-chain', `proofs stay off chain; found "${proofAt}". Record a proof hash and keep the proof available instead`)
@@ -106,145 +128,129 @@ export async function verifyBlock(block, ctx) {
   const height = (parent?.height ?? 0) + 1
   if (block.height !== height) reject('link', `expected height ${height}, got ${block.height}`)
   if (block.parent !== (parent?.hash ?? GENESIS)) reject('link', `parent ${block.parent} is not the tip ${parent?.hash ?? GENESIS}`)
-  const header = headerOf(block)
+  const header = blockHeader(block)
   if (sha256(header) !== block.hash) reject('hash', 'block hash does not match its header')
   const sealer = expectedSealer([...ctx.validators.keys()], height)
   if (block.sealer !== sealer) reject('sealer', `height ${height} is ${sealer}'s turn, not ${block.sealer}'s`)
   if (!verifyMessage(ctx.validators.get(sealer), header, block.signature)) reject('sealer', 'sealer signature does not verify')
+  const t = Date.parse(block.time)
+  if (Number.isNaN(t)) reject('time', `block time "${block.time}" is not a date`)
+  if (parent && !(t > Date.parse(parent.time))) reject('time', 'block time is not after its parent')
+  if (t > (ctx.now ?? Date.now()) + MAX_CLOCK_SKEW_MS) reject('time', 'block time is in the future')
   if (sha256(block.rulings.map(r => sha256(r)).join('')) !== block.rulingsRoot) reject('root', 'rulings root does not match the rulings')
 
   const out = { rulings: [], reviews: [], settlements: [] }
   const inBlock = new Set()
-  for (const env of block.rulings) {
-    if (inBlock.has(env.ascHash)) reject('already-ruled', `contract ${env.ascHash} appears twice`)
-    inBlock.add(env.ascHash)
-    const result = await verifyRuling(env, block, ctx)
-    out.rulings.push({ id: rulingId(env), ruling: env })
-    if (result.review) out.reviews.push({ ...result.review, byRuling: rulingId(env) })
-    out.settlements.push(result.settlement)
+  for (const ruling of block.rulings) {
+    if (inBlock.has(ruling.ascHash)) reject('already-ruled', `contract ${ruling.ascHash} appears twice`)
+    inBlock.add(ruling.ascHash)
+    const { asc, settlement } = checkRuling(ruling, block, ctx)
+    out.rulings.push({ id: rulingId(ruling), ruling })
+    out.settlements.push(settlement)
+
+    // Challenges append a review to the ruling they name; the original is never edited.
+    // A challenge that rules below the bar leaves the original standing and appends nothing.
+    if (asc.review) {
+      let review
+      try { review = resolveChallenge(asc, ruling, ctx.ruling(asc.review.ruling).ruling) } catch (err) { reject('review', err.message) }
+      if (review.result === 'stands') continue
+      const log = [...ctx.reviews(review.ruling), ...out.reviews.filter(r => r.ruling === review.ruling)]
+      try { appendReview(log, review) } catch (err) { reject('review', err.message) }
+      out.reviews.push(review)
+    }
   }
+
+  // Reviews ride in the block of the challenge ruling that decided them, under the reviews root.
+  const reviews = block.reviews ?? []
+  if ((reviews.length || block.reviewsRoot !== undefined) && sha256(reviews.map(r => sha256(r)).join('')) !== block.reviewsRoot) reject('review', 'reviews root does not match the reviews')
+  if (canonical(reviews) !== canonical(out.reviews)) reject('review', `block reviews are not what core's resolveChallenge gives (expected ${out.reviews.map(r => r.result).join(', ') || 'none'})`)
   return out
 }
 
-async function verifyRuling(env, block, ctx) {
-  const found = ctx.contract(env.ascHash)
-  if (!found) reject('unknown-contract', `contract ${env.ascHash} is not in this node's mempool`)
+function checkRuling(ruling, block, ctx) {
+  const found = ctx.contract(ruling.ascHash)
+  if (!found) reject('unknown-contract', `contract ${ruling.ascHash} is not in this node's mempool`)
   const { entry, asc } = found
   if (entry.status !== 'pending') reject('already-ruled', `contract ${asc.id} was already ${entry.status}`)
-  if (hashAsc(asc) !== env.ascHash) reject('unknown-contract', 'contract hash does not match')
+  if (hashAsc(asc) !== ruling.ascHash) reject('unknown-contract', 'contract hash does not match')
   const problems = validate(asc)
   if (problems.length) reject('contract', problems.join('; '))
+  if (asc.review) {
+    const problem = challengeProblem(asc, ctx.ruling)
+    if (problem) reject('review', problem)
+  }
 
   // Context is evidence: every pin is checked against bytes this node holds.
   const loaded = loadContext(asc)
   if (!loaded.ok) reject('context', loaded.problems.join('; '))
-  if (canonical(env.contextHashes) !== canonical(asc.context.map(c => c.sha256))) reject('context', 'ruling cites context hashes the contract did not pin')
+  if (canonical(ruling.contextHashes) !== canonical(asc.context.map(c => c.sha256))) reject('context', 'ruling cites context hashes the contract did not pin')
 
   // Juries span labs, and are drawn from the parent block hash.
-  const round = env.round ?? reject('round', 'ruling carries no commit and reveal record')
+  const round = ruling.round
+  if (!round || !Array.isArray(round.jury) || !Array.isArray(round.commits) || !Array.isArray(round.reveals)) reject('round', 'ruling carries no commit and reveal record')
   const rules = asc.payment.jury
-  const cards = round.jury.map(id => ctx.harnesses.get(id) ?? reject('jury-unknown', `juror ${id} is not registered`))
-  const labs = new Set(cards.map(c => c.lab))
-  if (cards.length !== rules.size) reject('jury-size', `jury has ${cards.length} seats, the contract asks for ${rules.size}`)
+  const jury = round.jury.map(c => {
+    const card = ctx.harnesses.get(c?.id) ?? reject('jury-unknown', `juror ${c?.id} is not registered`)
+    if (card.publicKey !== c.publicKey || card.lab !== c.lab || card.model !== c.model || Number(card.bond) !== Number(c.bond)) reject('jury-unknown', `juror ${c.id} card does not match its registration`)
+    return card
+  })
+  if (jury.length !== rules.size) reject('jury-size', `jury has ${jury.length} seats, the contract asks for ${rules.size}`)
+  const labs = new Set(jury.map(c => c.lab))
   if (labs.size < rules.minLabs) reject('jury-labs', `jury spans ${labs.size} labs; the contract requires ${rules.minLabs}`)
-  const minBond = asc.payment.maxValuePerVote ?? 0
-  for (const c of cards) if (c.bond < minBond) reject('jury-bond', `${c.id} bonds ${c.bond}, below ${minBond} per vote`)
+  const allowed = new Set(eligibleJurors(jury, asc).map(c => c.id))
+  for (const c of jury) if (!allowed.has(c.id)) reject('jury-bond', `${c.id} (bond ${c.bond}, lab ${c.lab}) may not sit on this jury`)
   const seed = block.parent
   if (round.seed !== seed) reject('jury-draw', 'jury seed is not the parent block hash')
-  const drawn = drawJury(eligible([...ctx.harnesses.values()], asc), rules, seed).map(h => h.id)
-  if (canonical(drawn) !== canonical(round.jury)) reject('jury-draw', `jury is not the draw seeded by the parent hash (expected ${drawn.join(', ')})`)
+  const pool = eligibleJurors([...ctx.harnesses.values()], asc)
+  let drawn
+  try { drawn = drawJuryFor(asc, pool, seed).map(h => h.id) } catch (err) { reject('jury-draw', err.message) }
+  if (canonical(drawn) !== canonical(jury.map(c => c.id))) reject('jury-draw', `jury is not the draw seeded by the parent hash (expected ${drawn.join(', ')})`)
 
   // Commitments: signed by the registered key, for this contract.
+  const byId = new Map(jury.map(c => [c.id, c]))
   const commits = new Map()
   for (const c of round.commits) {
-    const card = ctx.harnesses.get(c.harness)
-    if (!card || !round.jury.includes(c.harness)) reject('commit', `${c.harness} is not on this jury`)
+    const card = byId.get(c?.harness) ?? reject('commit', `${c?.harness} is not on this jury`)
     if (commits.has(c.harness)) reject('commit', `${c.harness} committed twice`)
-    const a = c.attestation ?? {}
-    if (a.harness !== c.harness || a.ascHash !== env.ascHash || a.commitment !== c.commitment || a.lab !== card.lab || a.model !== card.model) reject('commit', `${c.harness} attestation does not match its commitment`)
-    if (!verifyMessage(card.publicKey, a, c.signature)) reject('commit', `${c.harness} commitment signature does not verify`)
-    const seen = ctx.seenCommitment?.(env.ascHash, c.harness)
+    const problem = checkCommit(card, c, ruling.ascHash)
+    if (problem) reject('commit', `${c.harness}: ${problem}`)
+    const seen = ctx.seenCommitment?.(ruling.ascHash, c.harness)
     if (seen && seen !== c.commitment) reject('commit-equivocation', `${c.harness} gossiped a different commitment`)
     commits.set(c.harness, c)
   }
 
   // Reveals must match their commitments.
-  const reveals = new Map()
   for (const r of round.reveals) {
-    const c = commits.get(r.harness)
-    if (!c) reject('reveal-mismatch', `${r.harness} revealed without committing`)
-    if (r.ascHash !== env.ascHash || !checkReveal(env.ascHash, r.vote, r.salt, c.commitment)) reject('reveal-mismatch', `${r.harness} reveal does not match its commitment`)
-    const card = ctx.harnesses.get(r.harness)
-    if (!verifyMessage(card.publicKey, { harness: r.harness, ascHash: env.ascHash, vote: r.vote, salt: r.salt }, r.signature)) reject('reveal-mismatch', `${r.harness} reveal signature does not verify`)
-    reveals.set(r.harness, r)
+    const c = commits.get(r?.harness) ?? reject('reveal-mismatch', `${r?.harness} revealed without committing`)
+    const problem = checkRevealRecord(byId.get(r.harness), c, r, ruling.ascHash)
+    if (problem) reject('reveal-mismatch', `${r.harness}: ${problem}`)
   }
 
   // Exits are declared: the jury can only choose a declared outcome.
   const declared = asc.exits.map(e => e.outcome)
-  const type = asc.question.answer.type
-  if (!declared.includes(env.exit)) reject('exit-undeclared', `exit "${env.exit}" is not declared by the contract`)
-  if (type !== 'forecast') {
-    for (const r of reveals.values()) if (!asc.question.answer.options.includes(r.vote.answer)) reject('exit-undeclared', `${r.harness} voted "${r.vote.answer}", not a declared option`)
-    if (env.passed && env.exit !== env.answer) reject('exit-undeclared', `exit "${env.exit}" does not match answer "${env.answer}"`)
+  if (!declared.includes(ruling.exit)) reject('exit-undeclared', `exit "${ruling.exit}" is not declared by the contract`)
+  if (asc.question.answer.type !== 'forecast') {
+    for (const r of round.reveals) if (!asc.question.answer.options.includes(r.vote.answer)) reject('exit-undeclared', `${r.harness} voted "${r.vote.answer}", not a declared option`)
+    if (ruling.passed && ruling.exit !== ruling.answer) reject('exit-undeclared', `exit "${ruling.exit}" does not match answer "${ruling.answer}"`)
   }
-  if (!env.passed && env.exit !== BELOW_BAR) reject('exit-undeclared', `a ruling below the bar must take "${BELOW_BAR}"`)
+  if (!ruling.passed && ruling.exit !== BELOW_BAR) reject('exit-undeclared', `a ruling below the bar must take "${BELOW_BAR}"`)
 
   // Diffs conserve.
-  if (!Array.isArray(env.diff) || !conserves(env.diff)) reject('diff-conserve', 'diff does not conserve totals')
+  if (!Array.isArray(ruling.diff) || !conserves(ruling.diff)) reject('diff-conserve', 'diff does not conserve totals')
 
   // Pay every counted vote, dissent included. Below the bar, pay nobody and carry the escrow.
-  const counted = env.votes.map(v => v.harness)
-  const jurorPay = env.diff.filter(d => d.account.startsWith('harness:') && d.account !== `harness:${block.sealer}`)
-  if (env.passed) {
-    for (const id of counted) {
-      const paid = jurorPay.filter(d => d.account === `harness:${id}`)
-      if (paid.length !== 1 || !(paid[0].delta > 0)) reject('pay', `counted vote by ${id} is not paid`)
-    }
-    if (jurorPay.length !== counted.length) reject('pay', 'diff pays a harness whose vote was not counted')
-    if (new Set(jurorPay.map(d => d.delta)).size > 1) reject('pay', 'counted votes are not paid equally')
-  } else {
-    if (env.diff.some(d => d.account.startsWith('harness:'))) reject('pay', 'a ruling below the bar never pays jurors or the sealer')
-    const carry = env.diff.find(d => d.account === `escrow:${asc.id}:escalation`)
-    if (!carry || Math.abs(carry.delta - asc.payment.escrow) > 1e-9) reject('pay', 'a ruling below the bar must carry its whole escrow to the escalated jury')
-  }
+  // The sealer is paid as the node that sealed this block, never as a harness.
+  const account = sealerAccount(block.sealer)
+  if (round.sealer !== account) reject('pay', `the round pays the sealer as ${round.sealer}, not ${account}`)
+  const unpaid = checkPay(asc, ruling, account)
+  if (unpaid.length) reject('pay', unpaid.join('; '))
 
-  // Re-run the ruling with core from the recorded messages; it must come out identical.
-  const replay = round.jury.map(id => replayJuror(ctx.harnesses.get(id), commits.get(id), reveals.get(id)))
-  const failed = []
-  const again = await rule(asc, replay, { id: block.sealer }, e => { if (e.phase === 'reveal-failed' && reveals.has(e.harness)) failed.push(e.harness) })
-  if (failed.length) reject('reveal-mismatch', `core rejected reveals from ${failed.join(', ')}`)
-  const { round: _r, review: _v, ...sealed } = env
-  if (canonical(again) !== canonical(sealed)) reject('replay', 'ruling does not match what core computes from its commitments and reveals')
+  // Core re-verifies the whole ruling from its round, and must agree.
+  const verdict = verifyRuling(asc, ruling, { cards: ctx.harnesses, pool, seed })
+  if (!verdict.ok) reject('replay', `core does not verify the ruling: ${verdict.problems.join('; ')}`)
 
-  // Challenges append a review; they never edit the original.
-  let review = null
-  if (entry.challenge || env.review) {
-    const want = entry.challenge
-    if (!want || !env.review || want.ruling !== env.review.ruling || want.grounds !== env.review.grounds) reject('review', 'ruling and mempool disagree about the challenge')
-    if (!GROUNDS.includes(want.grounds)) reject('review', `unknown grounds "${want.grounds}"`)
-    const target = ctx.ruling(want.ruling) ?? reject('review', `challenged ruling ${want.ruling} is not on chain`)
-    const expected = reviewResult(target.ruling, env, want.grounds)
-    if (env.review.result !== expected) reject('review', `challenge result should be "${expected}", not "${env.review.result}"`)
-    if (expected !== 'stands') review = { ruling: want.ruling, result: expected, grounds: want.grounds }
-  }
-
-  const carried = env.passed ? 0 : asc.payment.escrow
-  return { review, settlement: { ascHash: env.ascHash, status: env.passed ? 'ruled' : 'escalated', carried, context: env.contextHashes } }
-}
-
-/**
- * What a challenge ruling does to the ruling it reviews, from the draft rulings SIMD:
- * same outcome affirms; a different outcome overturns, or supersedes when the grounds
- * are changed rules; no ruling (below the bar) leaves the original standing.
- * @param {object} original - the challenged ruling envelope.
- * @param {object} challenge - the challenge ruling (core fields).
- * @param {string} grounds - one of GROUNDS.
- * @returns {'affirm' | 'overturn' | 'supersede' | 'stands'} the result.
- */
-export function reviewResult(original, challenge, grounds) {
-  if (!challenge.passed) return 'stands'
-  if (canonical(challenge.answer) === canonical(original.answer)) return 'affirm'
-  return grounds === 'changed-rules' ? 'supersede' : 'overturn'
+  const carried = ruling.passed ? 0 : asc.payment.escrow
+  return { asc, settlement: { ascHash: ruling.ascHash, status: ruling.passed ? 'ruled' : 'escalated', carried, context: ruling.contextHashes } }
 }
 
 function findKey(value, test, path = '') {

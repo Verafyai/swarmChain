@@ -6,13 +6,12 @@
  * @module swarmchain/node
  */
 import {
-  createIdentity, signMessage, verifyMessage, validate, loadContext, ascHash as hashAsc,
-  drawJury, checkReveal, rule, seal,
+  createIdentity, importIdentity, signMessage, verifyMessage, validate, loadContext, ascHash as hashAsc,
+  drawJuryFor, checkCommit, checkRevealRecord, ruleFromRecords, resolveChallenge, seal,
 } from '#core'
 import { BlockStore } from './store.js'
 import { ContextStore, fetchContext } from '../../storage/src/index.js'
-import { verifyBlock, expectedSealer, reviewResult, eligible, GENESIS, GROUNDS, BlockRejected } from './verify.js'
-import { replayJuror } from './jury.js'
+import { verifyBlock, expectedSealer, challengeProblem, sealTime, GENESIS, BlockRejected } from './verify.js'
 
 export class ChainNode {
   /**
@@ -24,11 +23,12 @@ export class ChainNode {
    * @param {object} options.jurors - a juror client: `commit(entry, asc)` and `reveal(entry, ascHash)`.
    * @param {(h: string, sources: string[]) => Promise<string>} [options.fetchContent] - fetch context bytes by hash.
    * @param {(event: object) => void} [options.log] - event sink.
+   * @param {object | string} [options.identity] - a kept Ed25519 key (identity, KeyObject or PKCS#8 PEM), so a restarted node keeps its id; a fresh key otherwise.
    */
-  constructor({ id, url = '', db = ':memory:', windowMs, jurors, fetchContent = fetchContext, log = () => {} }) {
+  constructor({ id, url = '', db = ':memory:', windowMs, jurors, fetchContent = fetchContext, log = () => {}, identity }) {
     this.id = id
     this.url = url
-    this.identity = createIdentity()
+    this.identity = identity ? importIdentity(identity) : createIdentity()
     this.store = new BlockStore(db)
     this.storage = new ContextStore(this.store.db, { windowMs })
     this.jurors = jurors
@@ -72,18 +72,19 @@ export class ChainNode {
 
   /**
    * Accept a funded contract into the mempool. Context bytes are checked against
-   * their pins, kept in storage, and stripped from the stored contract.
+   * their pins, kept in storage, and stripped from the stored contract. A
+   * challenge is a contract in core's `challengeContract` format (it carries
+   * `review`), and must name a sealed ruling.
    * @param {object} asc - the contract, with or without context bytes.
-   * @param {{challenge?: {ruling: string, grounds: string} | null, sources?: string[], gossip?: boolean}} [options] -
-   *   a challenge, places to fetch missing context, and whether to gossip it.
+   * @param {{sources?: string[], gossip?: boolean}} [options] - places to fetch missing context, and whether to gossip it.
    * @returns {Promise<string>} the contract's hash.
    */
-  async submit(asc, { challenge = null, sources = [], gossip = true } = {}) {
+  async submit(asc, { sources = [], gossip = true } = {}) {
     const problems = validate(asc)
     if (problems.length) throw new Error(`contract rejected: ${problems.join('; ')}`)
-    if (challenge) {
-      if (!GROUNDS.includes(challenge.grounds)) throw new Error(`contract rejected: unknown grounds "${challenge.grounds}"`)
-      if (!this.store.ruling(challenge.ruling)) throw new Error(`contract rejected: challenged ruling ${challenge.ruling} is not on chain`)
+    if (asc.review) {
+      const problem = challengeProblem(asc, id => this.store.ruling(id))
+      if (problem) throw new Error(`contract rejected: ${problem}`)
     }
     const h = hashAsc(asc)
     if (this.store.contract(h)) return h
@@ -92,9 +93,9 @@ export class ChainNode {
     if (!loaded.ok) throw new Error(`contract rejected: ${loaded.problems.join('; ')}`)
     for (const c of filled.context) this.storage.put(c.content, c.sha256)
     const stripped = { ...asc, context: asc.context.map(({ content, ...meta }) => meta) }
-    this.store.addContract(h, stripped, challenge)
+    this.store.addContract(h, stripped)
     this.log({ event: 'contract', node: this.id, asc: asc.id, ascHash: h })
-    if (gossip) await this.gossip.broadcast('contract', { asc: stripped, challenge, sources: [this.url, ...sources].filter(Boolean) })
+    if (gossip) await this.gossip.broadcast('contract', { asc: stripped, sources: [this.url, ...sources].filter(Boolean) })
     return h
   }
 
@@ -131,6 +132,7 @@ export class ChainNode {
       harnesses: this.harnessCards(),
       contract: h => this.contract(h),
       ruling: id => this.store.ruling(id),
+      reviews: id => this.store.reviews(id),
       seenCommitment: (h, harness) => this.commitments.get(`${h}:${harness}`),
     }
   }
@@ -141,7 +143,7 @@ export class ChainNode {
    * @returns {Promise<object>} the block.
    */
   async accept(block) {
-    const { rulings, reviews, settlements } = await verifyBlock(block, this.#view())
+    const { rulings, reviews, settlements } = verifyBlock(block, this.#view())
     this.store.append(block, rulings, reviews, () => {
       for (const s of settlements) {
         this.store.settleContract(s.ascHash, s.status, block.hash, s.carried)
@@ -162,9 +164,9 @@ export class ChainNode {
     const pool = [...this.store.harnesses()].map(e => ({ ...e.card, entry: e }))
     for (const entry of this.store.contracts()) {
       if (entry.status !== 'pending') continue
-      if (entry.challenge && !this.store.ruling(entry.challenge.ruling)) continue
+      if (entry.asc.review && !this.store.ruling(entry.asc.review.ruling)) continue
       try {
-        const jury = drawJury(eligible(pool, entry.asc), entry.asc.payment.jury, seed)
+        const jury = drawJuryFor(entry.asc, pool, seed)
         return { ...this.contract(entry.ascHash), jury }
       } catch { /* this pool cannot seat it yet */ }
     }
@@ -208,8 +210,9 @@ export class ChainNode {
     const commits = []
     settled.forEach((s, i) => {
       const card = jury[i]
-      if (s.status === 'fulfilled' && verifyMessage(card.publicKey, s.value.attestation, s.value.signature)) commits.push(s.value)
-      else this.log({ event: 'commit-failed', node: this.id, harness: card.id, error: String(s.reason?.message ?? 'bad signature') })
+      const problem = s.status === 'fulfilled' ? checkCommit(card, s.value, h) : String(s.reason?.message ?? s.reason)
+      if (problem) this.log({ event: 'commit-failed', node: this.id, harness: card.id, error: problem })
+      else commits.push(s.value)
     })
     for (const c of commits) { this.#noteCommit(h, c); await this.gossip.broadcast('commit', { ascHash: h, commit: c }) }
 
@@ -219,23 +222,24 @@ export class ChainNode {
       const card = jury.find(j => j.id === c.harness)
       try {
         const r = await this.jurors.reveal(card.entry, h)
-        if (checkReveal(h, r.vote, r.salt, c.commitment)) { reveals.push(r); await this.gossip.broadcast('reveal', { ascHash: h, reveal: r }) }
-        else this.log({ event: 'reveal-failed', node: this.id, harness: c.harness })
+        const problem = checkRevealRecord(card, c, r, h)
+        if (problem) { this.log({ event: 'reveal-failed', node: this.id, harness: c.harness, error: problem }); continue }
+        reveals.push(r)
+        await this.gossip.broadcast('reveal', { ascHash: h, reveal: r })
       } catch (err) {
         this.log({ event: 'reveal-failed', node: this.id, harness: c.harness, error: err.message })
       }
     }
 
-    // Core rules from the recorded messages, exactly as every verifier will.
-    const cards = this.harnessCards()
-    const replay = jury.map(j => replayJuror(cards.get(j.id), commits.find(c => c.harness === j.id), reveals.find(r => r.harness === j.id)))
-    const ruling = await rule(asc, replay, { id: this.id })
-    const envelope = { ...ruling, round: { seed, jury: jury.map(j => j.id), commits, reveals } }
-    if (entry.challenge) {
-      const target = this.store.ruling(entry.challenge.ruling)
-      envelope.review = { ...entry.challenge, result: reviewResult(target.ruling, ruling, entry.challenge.grounds) }
+    // Core rules from the recorded messages, exactly as every verifier will. A juror
+    // that did not commit or reveal is not counted and is listed in the round's faults.
+    const ruling = ruleFromRecords(asc, commits, reveals, { jury, sealer: { id: this.id, kind: 'node' }, seed })
+    const reviews = []
+    if (asc.review) {
+      const review = resolveChallenge(asc, ruling, this.store.ruling(asc.review.ruling).ruling)
+      if (review.result !== 'stands') reviews.push(review)
     }
-    return seal(parent, [envelope], this.signer)
+    return seal(parent, [ruling], this.signer, { time: sealTime(parent), reviews })
   }
 
   /** The sealer object core's `seal` takes: this node's id and signing function. */
@@ -255,10 +259,11 @@ export class ChainNode {
   async handleGossip(type, msg) {
     const cards = this.harnessCards()
     if (type === 'contract') {
-      await this.submit(msg.asc, { challenge: msg.challenge, sources: msg.sources ?? [], gossip: false })
+      await this.submit(msg.asc, { sources: msg.sources ?? [], gossip: false })
     } else if (type === 'commit') {
       const card = cards.get(msg.commit?.harness)
-      if (!card || !verifyMessage(card.publicKey, msg.commit.attestation, msg.commit.signature)) throw new Error('commit signature does not verify')
+      const problem = card ? checkCommit(card, msg.commit, msg.ascHash) : 'unknown harness'
+      if (problem) throw new Error(`commit does not verify: ${problem}`)
       const key = `${msg.ascHash}:${card.id}`
       const prior = this.commitments.get(key)
       if (prior && prior !== msg.commit.commitment) throw new Error(`${card.id} equivocated: two commitments for one contract`)
@@ -267,7 +272,8 @@ export class ChainNode {
       const r = msg.reveal
       const commitment = this.commitments.get(`${msg.ascHash}:${r?.harness}`)
       if (!commitment) throw new Error(`reveal from ${r?.harness} before its commitment`)
-      if (!checkReveal(msg.ascHash, r.vote, r.salt, commitment)) throw new Error(`reveal from ${r.harness} does not match its commitment`)
+      const problem = checkRevealRecord(cards.get(r.harness), { commitment }, r, msg.ascHash)
+      if (problem) throw new Error(`reveal from ${r.harness} does not verify: ${problem}`)
     } else if (type === 'block') {
       await this.#receiveBlock(msg)
     }
