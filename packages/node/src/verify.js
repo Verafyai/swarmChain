@@ -1,7 +1,7 @@
 /**
  * Block verification. Every node runs this on every block, including the ones
  * it seals itself. Every hash, signature, reveal, agreement and diff check is a
- * call into `@swarmharness/core`; what lives here is the order of checks and the
+ * call into `@verafyharness/core`; what lives here is the order of checks and the
  * chain's design rules:
  *
  *   no empty blocks              a block exists only when a jury rules

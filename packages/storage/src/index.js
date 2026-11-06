@@ -3,7 +3,7 @@
  * the challenge window, so anyone can re-check what a jury read. A block holds
  * only the hashes; the bytes live here.
  *
- * Every hash is computed by `@swarmharness/core`.
+ * Every hash is computed by `@verafyharness/core`.
  * @module swarmchain/storage
  */
 import { sha256 } from '#core'

@@ -1,46 +1,82 @@
+<p align="center">
+  <img src="docs/assets/banner.png" alt="Swarm Chain: contracts written in words, validators with judgment, no token" width="100%">
+</p>
+
 # Swarm Chain
 
-**A chain whose blocks are rulings.** Swarm Chain holds Actually Smart Contracts that are funded and waiting for a jury, coordinates juries of harnessed AI validators, gossips their commitments and reveals, seals each ruling into a block, and keeps the context every ruling read available by hash.
+**A blockchain that runs on words, intentions, ideas and questions.** Contracts are written in natural language and ruled on by juries of harnessed AI validators. There is no token.
 
-> Concept and prototype. Not a running network, no token, not audited. Everything here runs on one machine with scripted model answers.
+> **Status.** In progress, not a running network, nothing audited. The validator, where most of the work lives, is **[Verafyai/verafyHarness](https://github.com/Verafyai/verafyHarness)**. This repo is the chain: the nodes that hold contracts, coordinate juries, and seal and store blocks. The concept is at **[swarmchain.verafy.ai](https://swarmchain.verafy.ai)**.
 
-## How it relates to Swarm Harness
+## What this repo is
 
-Swarm Chain is the chain half of [Swarm Chain](https://swarmchain.verafy.ai). The validator half is [Swarm Harness](https://github.com/Verafyai/swarmHarness).
-
-| Repo | Owns | Does not own |
+| | Verafy Harness | Swarm Chain (this repo) |
 |---|---|---|
-| [Verafyai/swarmHarness](https://github.com/Verafyai/swarmHarness) | The harnessed validator: the contract format, context loader, juror prompt and guardrails, signer, agreement, contract runtime, the DeepSeek Harness juror plugin, the CLI, and the harness daemon. | Block storage, networking between harnesses, the chain's state. |
-| Verafyai/swarmchain (this repo) | The node that holds funded contracts, jury coordination, commit and reveal gossip, sealing and block storage, the availability layer for context, bonds and slashing, the read API, the explorer, and the Solana bridge. | Anything that runs a model. A node never calls an LLM; harnesses do. |
+| Role | The validator: an AI model wrapped in a harness | The bookkeeper: nodes |
+| Runs a model | Yes | Never |
+| Does | Takes jury seats, checks context, deliberates, commits and reveals votes, runs exits, audits, stores context, routes payments | Holds funded contracts waiting for juries, draws juries, relays commitments and reveals, seals blocks, checks every diff and signature, serves the read API and explorer, bridges triggers to Solana |
 
-The boundary is a rule: **every hash, signature, agreement and diff check in this repo comes from `@swarmharness/core`.** Nothing here reimplements them. When the chain needs something the core lacks, the change goes to swarmHarness first. Known gaps are listed in [ROADMAP.md](ROADMAP.md#needed-in-swarmharness).
+Every hash, signature, agreement and diff check comes from `@verafyharness/core`. This repo never reimplements them.
 
-## Quick start
+## Consensus
+
+- **Judgment consensus** (from verafyHarness): a ruling is valid when its jury was drawn from the parent block hash across enough labs, a quorum revealed votes matching their commitments, every answer is in bounds, the contract's bar was or was not cleared, and the diff matches the exit and conserves totals.
+- **Ledger consensus** (this repo, proposed for testnet): a sealer rotation over the node set; a block is final at two thirds of node signatures. A block must contain at least one ruling: Proof of Judgment, no judgments, no block. Rulings stay open to challenge during their window; a challenge appends, never erases.
+
+## No coin
+
+There is no token and no need for one. Escrow stays on the chain where the requester paid, in their asset: USDC or SOL on Solana, ETH or any ERC-20 on Ethereum. Swarm Chain records the ruling, and a quorum-signed trigger releases the escrow there. Harnesses plug in a payment router and are paid in the contract's own asset. This is being built without venture capital so the idea stands on its own, and it is MIT licensed so anyone can copy it. There is no foundation, no UAE entity, and no BVI or other offshore company behind this. It is just a project. Come test it. We are having fun again.
+
+## Layout
+
+```
+packages/node/            mempool, jury coordination, sealer rotation, block store (node:sqlite)
+  src/node.js             ChainNode: submit, prepareBlock, sealNext, accept, handleGossip
+  src/verify.js           verifyBlock: every rule above, in order
+  src/jury.js             replay jurors for core's rule(); HTTP and in-process juror clients
+  src/store.js            SQLite schema with append-only triggers
+  src/server.js           HTTP: gossip, storage, read API, explorer, submit, register
+  bin/swarmchain-node.mjs start one node
+packages/gossip/          commit, reveal, contract and block messages over HTTP
+packages/storage/         availability layer: context by sha256 through the challenge window
+packages/api/             the read API
+packages/explorer/        a static page that reads the API
+packages/bridge-solana/   milestone 5 stub: trigger message and quorum check
+scripts/devnet.mjs        three nodes, five harnesses, five contracts, five blocks
+scripts/harness-process.mjs  a core Harness served over HTTP; stand-in for the verafyHarness daemon
+test/                     node:test suite
+```
+
+## First milestone: done
+
+Three local nodes and five harness processes from verafyHarness seal blocks together over HTTP. Every node verifies every block with `@verafyharness/core` and rejects a block whose diff does not conserve, whose reveals do not match their commitments, or whose jury does not span the contract's labs. `npm run devnet` is the check: it submits the five example contracts from verafyHarness and exits 0 only when all three nodes hold five identical blocks.
+
+### Quick start
 
 Needs Node 22.13 or later (for `node:sqlite`). No other dependencies.
 
 ```sh
 git clone https://github.com/Verafyai/swarmchain.git
 cd swarmchain
-npm install       # fetches @swarmharness/core from GitHub at a pinned commit
+npm install       # fetches @verafyharness/core from GitHub at a pinned commit
 npm test          # node:test suite, including the devnet check
 npm run devnet    # three nodes, five harnesses, five example contracts, five blocks
 ```
 
-`npm run devnet` starts three nodes (ports 7101 to 7103) and five harness processes (ports 7201 to 7205), submits the five swarmHarness example contracts, and prints every block's hash as each node holds it. It exits 0 only when all three nodes hold the same five blocks. Add `--keep` to leave it running and open the explorer at http://127.0.0.1:7101/, or `--verbose` to see every event.
+`npm run devnet` starts three nodes (ports 7101 to 7103) and five harness processes (ports 7201 to 7205), submits the five verafyHarness example contracts, and prints every block's hash as each node holds it. It exits 0 only when all three nodes hold the same five blocks. Add `--keep` to leave it running and open the explorer at http://127.0.0.1:7101/, or `--verbose` to see every event.
 
-**The harnesses use the scripted provider.** There is no model key in this repo or its devnet, so each harness answers from swarmHarness's `examples/mock-answers.json` through core's `mockProvider`. No model is called. Swapping in live models is a swarmHarness concern (`--live`, `SWARM_API_KEY`), not a chain one.
+**The harnesses use the scripted provider.** There is no model key in this repo or its devnet, so each harness answers from verafyHarness's `examples/mock-answers.json` through core's `mockProvider`. No model is called. Swapping in live models is a verafyHarness concern (`--live`, `SWARM_API_KEY`), not a chain one.
 
-### How @swarmharness/core is consumed
+#### How @verafyharness/core is consumed
 
-npm cannot install one folder of a git repository, so `package.json` depends on the whole swarmHarness repo at a pinned commit and maps `#core` to the core package inside it:
+npm cannot install one folder of a git repository, so `package.json` depends on the whole verafyHarness repo at a pinned commit and maps `#core` to the core package inside it:
 
 ```json
-"dependencies": { "swarmharness": "github:Verafyai/swarmHarness#8a0ab46" },
-"imports": { "#core": "swarmharness/packages/swarm-core/src/index.js" }
+"dependencies": { "verafyharness": "github:Verafyai/verafyHarness#d69633b" },
+"imports": { "#core": "verafyharness/packages/core/src/index.js" }
 ```
 
-Every module here imports `#core`. To develop against a local swarmHarness checkout, install it in place without saving: `npm install --no-save ../swarmHarness`. To move the pin, change the commit in `package.json` and run `npm install`.
+Every module here imports `#core`. To develop against a local verafyHarness checkout, install it in place without saving: `npm install --no-save ../verafyHarness`. To move the pin, change the commit in `package.json` and run `npm install`.
 
 ## What a node does
 
@@ -111,29 +147,20 @@ Each node serves it, read only, with CORS open for the explorer.
 
 A `proofHash`, when one appears, is a hash only. It means something alongside availability, bonds and challenges, never by itself.
 
-## Repository layout
+## Run a node
 
-```
-packages/node/            mempool, jury coordination, sealer rotation, block store (node:sqlite)
-  src/node.js             ChainNode: submit, prepareBlock, sealNext, accept, handleGossip
-  src/verify.js           verifyBlock: every rule above, in order
-  src/jury.js             replay jurors for core's rule(); HTTP and in-process juror clients
-  src/store.js            SQLite schema with append-only triggers
-  src/server.js           HTTP: gossip, storage, read API, explorer, submit, register
-  bin/swarmchain-node.mjs start one node
-packages/gossip/          commit, reveal, contract and block messages over HTTP
-packages/storage/         availability layer: context by sha256 through the challenge window
-packages/api/             the read API
-packages/explorer/        a static page that reads the API
-packages/bridge-solana/   milestone 5 stub: trigger message and quorum check
-scripts/devnet.mjs        three nodes, five harnesses, five contracts, five blocks
-scripts/harness-process.mjs  a core Harness served over HTTP; stand-in for the swarmHarness daemon
-test/                     node:test suite
-```
+See [Run a harness](https://github.com/Verafyai/verafyHarness/blob/main/docs/run-a-harness.md) (harnesses and nodes, requirements, consensus, payments) and [Testnet](https://github.com/Verafyai/verafyHarness/blob/main/docs/testnet.md). Recommended node: 8 vCPU, 32 GB RAM, 2 TB NVMe, 1 Gbps.
 
 ## Performance
 
 Nothing here has run as a network. The devnet prints its own wall time, labeled measured: it is one machine, scripted answers and no model calls, so it measures the chain's message handling only, not a ruling's real latency, which is set by the slowest juror's model.
+
+## Read more
+
+- [swarmchain.verafy.ai](https://swarmchain.verafy.ai), the concept, with both animations
+- [Verafyai/verafyHarness](https://github.com/Verafyai/verafyHarness), the validator and the full design
+- [Bringing Inference Programs To Solana](https://blog.verafy.ai/articles/20261105-simd-verifiable-inference), the essay
+- [SIMD discussion #724](https://github.com/solana-foundation/solana-improvement-documents/discussions/724)
 
 ## License
 

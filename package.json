@@ -7,7 +7,7 @@
   "license": "MIT",
   "engines": { "node": ">=22.13" },
   "imports": {
-    "#core": "swarmharness/packages/swarm-core/src/index.js"
+    "#core": "verafyharness/packages/core/src/index.js"
   },
   "scripts": {
     "test": "node --test test/",
@@ -15,6 +15,6 @@
     "node": "node packages/node/bin/swarmchain-node.mjs"
   },
   "dependencies": {
-    "swarmharness": "github:Verafyai/swarmHarness#8a0ab46"
+    "verafyharness": "github:Verafyai/verafyHarness#d69633b"
   }
 }

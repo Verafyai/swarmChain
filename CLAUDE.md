@@ -4,8 +4,8 @@ The chain half of Swarm Chain: node, gossip, storage, read API, explorer, Solana
 
 ## The boundary
 
-- swarmchain imports `@swarmharness/core` (as `#core`) for every hash, signature, agreement and diff check, and never reimplements them.
-- If the chain needs something core lacks, add it to swarmHarness first, then consume it. Until then, write it under "Needed in swarmHarness" in ROADMAP.md and in the PR body.
+- swarmchain imports `@verafyharness/core` (as `#core`) for every hash, signature, agreement and diff check, and never reimplements them.
+- If the chain needs something core lacks, add it to verafyHarness first, then consume it. Until then, write it under "Needed in verafyHarness" in ROADMAP.md and in the PR body.
 - A node never calls a model. Harnesses do.
 - Core is pinned by commit in `package.json`. Move the pin on purpose, in its own commit.
 

@@ -12,4 +12,4 @@ To build in milestone 5, against the draft SIMDs (Inference Programs; Evaluators
 - the relay: watch sealed blocks, collect juror signatures over each trigger, submit the transaction;
 - a devnet prediction market created, funded, resolved by a jury and settled by a quorum-signed call.
 
-The trigger message format belongs in `@swarmharness/core`; it lives here only until core has one.
+The trigger message format belongs in `@verafyharness/core`; it lives here only until core has one.

@@ -1,6 +1,6 @@
 /**
  * Jury coordination. The node draws a jury with `drawJury` from
- * `@swarmharness/core`, seeded with the parent block hash, runs the commit round
+ * `@verafyharness/core`, seeded with the parent block hash, runs the commit round
  * and then the reveal round over a juror client, and hands the recorded
  * commitments and reveals to core's `rule` through replay jurors. Core does the
  * signature checks, reveal checks, agreement, exit, diff and conservation; the
@@ -52,7 +52,7 @@ export function httpJurorClient({ timeoutMs = 30_000 } = {}) {
 }
 
 /**
- * A juror client over in-process `Harness` objects from `@swarmharness/core`, for tests.
+ * A juror client over in-process `Harness` objects from `@verafyharness/core`, for tests.
  * @param {Map<string, {harness: object, before?: (asc: object) => void}>} byId - harnesses by id, with an optional hook run before each commit.
  * @returns {{commit: Function, reveal: Function}} the client.
  */

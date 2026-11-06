@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * One harness process: a `Harness` from `@swarmharness/core`, unchanged, served
+ * One harness process: a `Harness` from `@verafyharness/core`, unchanged, served
  * over HTTP so nodes can seat it on a jury. This is a thin stand-in for the
- * swarmHarness harness daemon (swarmHarness milestone 4), which does not exist yet.
+ * verafyHarness harness daemon (verafyHarness milestone 4), which does not exist yet.
  *
  *   harness-process --id h-anthropic-1 --port 7201 --nodes http://127.0.0.1:7101,...
  *
- * The harness's lab, model and bond come from swarmHarness's swarm.config.json.
+ * The harness's lab, model and bond come from verafyHarness's swarm.config.json.
  * Answers come from the SCRIPTED provider (core's mockProvider over
- * swarmHarness's examples/mock-answers.json), because there is no model key here.
+ * verafyHarness's examples/mock-answers.json), because there is no model key here.
  *
  *   GET  /card      the public card
  *   POST /commit    { asc } -> a signed commitment
@@ -21,12 +21,12 @@ import { dirname, join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { Harness, mockProvider } from '#core'
 
-const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('swarmharness/package.json'))
+const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('verafyharness/package.json'))
 const { values } = parseArgs({ options: { id: { type: 'string' }, port: { type: 'string' }, nodes: { type: 'string', default: '' } } })
 const config = JSON.parse(await readFile(join(HARNESS_ROOT, 'swarm.config.json'), 'utf8'))
 const script = JSON.parse(await readFile(join(HARNESS_ROOT, 'examples', 'mock-answers.json'), 'utf8'))
 const setup = config.pool.find(h => h.id === values.id)
-if (!setup) { console.error(`no harness "${values.id}" in swarmHarness swarm.config.json`); process.exit(2) }
+if (!setup) { console.error(`no harness "${values.id}" in verafyHarness swarm.config.json`); process.exit(2) }
 
 const harness = new Harness({ ...setup, provider: null })
 const url = `http://127.0.0.1:${values.port}`
