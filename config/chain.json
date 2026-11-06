@@ -1,0 +1,25 @@
+{
+  "kind": "verafy.chain-config/0",
+  "status": "Proposed. Every value here is an illustrative default until Rex confirms it and it is fixed in the ratification contract for Block 0. After that, a value changes only by amendment (AMENDMENTS.md). No API route changes it.",
+  "batching": {
+    "L1": {
+      "batch": { "value": false, "label": "illustrative", "source": "MASTER_SPEC Part C1: L1 contracts do not batch; they seal as soon as a jury rules", "date": "2026-11-06" }
+    },
+    "L2": {
+      "warmupMaxPct": { "value": 10, "label": "illustrative", "source": "MASTER_SPEC Part C1: value rule at warm-up no more than 10% of block cost (minRequestsForWarmup in packages/economics)", "date": "2026-11-06" },
+      "maxWaitSeconds": { "value": 3600, "label": "illustrative", "source": "MASTER_SPEC Part C1: the oldest funded contract waits at most 3,600 s", "date": "2026-11-06" },
+      "idleReserveUsd": { "value": 0, "label": "illustrative", "source": "Fixed cost per block for idle GPU hours, on top of warm-up. Zero until a proving operator measures idle time (Part D)", "date": "2026-11-06" },
+      "preset": { "value": "unpacked", "label": "illustrative", "source": "packages/economics preset used to model a block: L2, FlashProve, unpacked", "date": "2026-11-06" }
+    }
+  },
+  "usdPerUnit": {
+    "value": { "USDC": 1, "USDT": 1 },
+    "label": "illustrative",
+    "source": "Stablecoins counted at one US dollar when checking that the queue covers a block. Escrow in any other currency does not count toward the value rule until a price source is chosen",
+    "date": "2026-11-06"
+  },
+  "queue": {
+    "threshold": { "value": "majority", "label": "illustrative", "source": "Shares needed to open a queued contract: more than half the node set (2 of 3 on the devnet)", "date": "2026-11-06" },
+    "clockSkewSeconds": { "value": 60, "label": "illustrative", "source": "How far ahead of its own clock a node lets the time rule run when it checks a close, the same skew it allows a block's time", "date": "2026-11-06" }
+  }
+}

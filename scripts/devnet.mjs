@@ -6,9 +6,11 @@
  *
  * Starts three Verafy Chain nodes (ports 7101 to 7103) and five harness
  * processes from verafyHarness (ports 7201 to 7205, one per lab), submits all
- * five verafyHarness example contracts, waits for five blocks, and prints each
- * block's hash as every node holds it. Exits 0 only if all three nodes hold the
- * same five blocks.
+ * five verafyHarness example contracts, waits for five blocks, then runs the
+ * encrypted queue (MASTER_SPEC Part C): L2 contracts sealed 2 of 3 to the nodes,
+ * a queue below the value threshold that does not close, a value close, and a
+ * time close. Prints each block's hash as every node holds it. Exits 0 only if
+ * all three nodes hold the same seven blocks.
  *
  * The harnesses use the SCRIPTED provider (verafyHarness examples/mock-answers.json).
  * There is no model key here, so no model is called. Each harness keeps its
@@ -21,6 +23,7 @@ import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { sealContract, queueMeta } from '#core'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('verafyharness/package.json'))
@@ -97,25 +100,91 @@ async function main() {
     await sleep(100)
   }
 
+  await queuePhase()
+
   const chains = await Promise.all(NODES.map(n => get(`${n.url}/blocks?full=1`)))
+  const total = EXAMPLES.length + 2
   console.log('\nblocks, as each node holds them')
-  let same = true
-  for (let i = 0; i < EXAMPLES.length; i++) {
+  let same = chains.every(ch => ch.length === total)
+  for (let i = 0; i < total; i++) {
     const [a, b, c] = chains.map(ch => ch[i])
-    const r = a.rulings[0]
     const match = a.hash === b.hash && b.hash === c.hash
     same &&= match
-    console.log(`\n  block ${a.height}  sealed by ${a.sealer}  parent ${a.parent.slice(0, 16)}`)
-    console.log(`    ${r.asc}: ${r.passed ? `${r.exit}, agreement ${Math.round(r.agreement * 100)}% against a bar of ${Math.round(r.bar * 100)}%` : `below the bar (${Math.round(r.agreement * 100)}% against ${Math.round(r.bar * 100)}%), ${r.exit}: escrow carried, no juror paid`}`)
+    console.log(`\n  block ${a.height}  sealed by ${a.sealer}  parent ${a.parent.slice(0, 16)}${a.rulings.length > 1 ? `  ${a.rulings.length} rulings (batch)` : ''}`)
+    for (const r of a.rulings) {
+      console.log(`    ${r.asc}: ${r.passed ? `${r.exit}, agreement ${Math.round(r.agreement * 100)}% against a bar of ${Math.round(r.bar * 100)}%` : `below the bar (${Math.round(r.agreement * 100)}% against ${Math.round(r.bar * 100)}%), ${r.exit}: escrow carried, no juror paid`}`)
+    }
+    const r = a.rulings[0]
     console.log(`    jury ${r.round.jury.map(c => c.id).join(', ')}; ${r.votes.length} counted votes, ${r.dissent.length} dissent; sealer account ${r.round.sealer}`)
     for (const [j, n] of NODES.entries()) console.log(`    ${n.id}  ${chains[j][i].hash}`)
     console.log(`    ${match ? 'identical on all three nodes' : 'MISMATCH'}`)
   }
   const extra = chains.map(ch => ch.length)
-  console.log(`\nheights ${extra.join(', ')}; ${same ? 'all five blocks identical on all three nodes' : 'nodes disagree'}`)
+  console.log(`\nheights ${extra.join(', ')}; ${same ? `all ${total} blocks identical on all three nodes` : 'nodes disagree'}`)
   console.log(`wall time ${((performance.now() - t0) / 1000).toFixed(2)} s (measured, one machine, scripted answers)`)
   console.log(`explorer  ${NODES[0].url}/  (only while the devnet runs; use --keep to leave it up)`)
   return same
+}
+
+const post = async (url, body) => {
+  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  const json = await res.json()
+  if (!res.ok) throw new Error(`${url}: ${json.error}`)
+  return json
+}
+const waitHeight = async (h, ms = 30_000) => {
+  const deadline = Date.now() + ms
+  for (;;) {
+    const hs = await Promise.all(NODES.map(n => get(`${n.url}/health`)))
+    if (hs.every(x => x.height >= h)) return
+    if (Date.now() > deadline) throw new Error(`timed out waiting for height ${h} (at ${hs.map(x => x.height).join(', ')})`)
+    await sleep(100)
+  }
+}
+const usd = x => `$${x.toFixed(4)}`
+
+/** An L2 version of an example contract, with payment overrides. */
+async function l2(name, payment) {
+  const asc = JSON.parse(await readFile(join(HARNESS_ROOT, 'examples', `${name}.json`), 'utf8'))
+  return { ...asc, payment: { ...asc.payment, ...payment, jury: { ...asc.payment.jury, assurance: 'L2' } } }
+}
+
+// The encrypted queue: L2 contracts sealed t of n, closed by value, then by time.
+async function queuePhase() {
+  const committee = await get(`${NODES[0].url}/queue/committee`)
+  console.log(`\nencrypted queue (L2): sealed ${committee.t} of ${committee.nodes.length} to ${committee.nodes.map(n => n.id).join(', ')}; only the escrow reference and payment metadata in the clear`)
+  const height = (await get(`${NODES[0].url}/health`)).height
+  // Declared size 150 proven requests per contract (illustrative), escrow 30 USDC each (illustrative).
+  const tokens = 150 * 1024
+  const big = await Promise.all(['market-resolution', 'fact-check', 'forecast'].map(n => l2(n, { escrow: 30 })))
+  const qBig = await post(`${NODES[0].url}/quote`, { meta: queueMeta(big[0], { escrowRef: 'quote', tokens }) })
+  console.log(`  quote before funding, ${big[0].id} at ${tokens} declared tokens: ${qBig.requests} requests x ${qBig.jurors} jurors; share ${usd(qBig.ifClosedNow.shareUsd)} if the block closed now, ${usd(qBig.atValueRule.shareUsd)} at the value rule (${qBig.atValueRule.contracts} contracts), price with ${qBig.marginPct}% margin ${usd(qBig.atValueRule.priceUsd)} (modeled)`)
+  let ref = 0
+  const submit = async (asc, opts) => {
+    const env = sealContract(asc, committee.nodes, { t: committee.t, escrowRef: `solana:devnet/escrow-demo-${++ref}`, ...opts })
+    const node = NODES[ref % NODES.length]
+    const { queueId } = await post(`${node.url}/queue`, { envelope: env })
+    console.log(`  queued   ${asc.id.padEnd(32)} to ${node.id}  queue ${queueId.slice(0, 16)}  escrow ${env.meta.escrow} ${env.meta.currency}`)
+  }
+  await submit(big[0], { tokens })
+  await submit(big[1], { tokens })
+  await sleep(1500)
+  const below = await get(`${NODES[0].url}/queue`)
+  const v = below.status.value
+  const h1 = (await get(`${NODES[0].url}/health`)).height
+  console.log(`  two queued: fixed cost ${v.fixedPct.toFixed(1)}% of the block (rule: at most ${v.warmupMaxPct}%), funded ${usd(v.fundedUsd)} of ${usd(v.neededUsd)} needed; ${h1 === height ? 'no block (below threshold)' : 'UNEXPECTED BLOCK'}`)
+  if (h1 !== height) throw new Error('a queue below the threshold closed')
+  await submit(big[2], { tokens })
+  await waitHeight(height + 1)
+  const costs1 = await get(`${NODES[0].url}/costs/${height + 1}`)
+  console.log(`  block ${height + 1} closed by value: ${costs1.split.shares.length} contracts, ${costs1.split.proofs} proofs, block cost ${usd(costs1.split.blockCostUsd)} of which fixed ${usd(costs1.split.fixedUsd)}; shares ${costs1.split.shares.map(s => usd(s.shareUsd)).join(' + ')} (modeled)`)
+
+  // Time: a contract that sets its own short maximum wait (illustrative; the chain default is 3,600 s).
+  const t0 = Date.now()
+  await submit(await l2('delay-cover', { maxWaitSeconds: 2 }))
+  await waitHeight(height + 2)
+  const costs2 = await get(`${NODES[0].url}/costs/${height + 2}`)
+  console.log(`  block ${height + 2} closed by time after ${((Date.now() - t0) / 1000).toFixed(1)} s (maxWaitSeconds 2): 1 contract pays the whole fixed cost, ${usd(costs2.split.blockCostUsd)} (modeled)`)
 }
 
 const stop = async () => {

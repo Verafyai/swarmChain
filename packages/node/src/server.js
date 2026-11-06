@@ -10,6 +10,7 @@ import { Gossip } from '../../gossip/src/index.js'
 import { readApi } from '../../api/src/index.js'
 import { ChainNode } from './node.js'
 import { httpJurorClient } from './jury.js'
+import { queueMeta } from '#core'
 
 const EXPLORER = fileURLToPath(new URL('../../explorer/index.html', import.meta.url))
 
@@ -23,6 +24,18 @@ export async function startNode({ id, port, host = '127.0.0.1', peers = [], db, 
   const node = new ChainNode({ id, url, db, windowMs, jurors: httpJurorClient(), log })
   const gossip = new Gossip({ self: url, peers, deliver: (type, msg) => node.handleGossip(type, msg) })
   node.gossip = gossip
+  // Ask each peer for its decryption shares; each peer checks the draw itself.
+  node.peers = {
+    requestShares: draw => Promise.all(peers.filter(p => p !== url).map(async peer => {
+      try {
+        const res = await fetch(`${peer}/queue/shares`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ draw }), signal: AbortSignal.timeout(10_000) })
+        const body = await res.json()
+        return res.ok ? { peer, ok: true, shares: body.shares } : { peer, ok: false, error: body.error }
+      } catch (err) {
+        return { peer, ok: false, error: err.message }
+      }
+    })),
+  }
   const api = readApi(node.store)
 
   async function handle(req) {
@@ -32,6 +45,20 @@ export async function startNode({ id, port, host = '127.0.0.1', peers = [], db, 
     if (req.method === 'POST' && req.path[0] === 'contracts' && req.path.length === 1) {
       const h = await node.submit(req.body.asc)
       return { status: 201, body: { ascHash: h } }
+    }
+    // The encrypted queue, the quote and the chain config (read only: parameters change only by amendment).
+    if (req.method === 'GET' && req.path[0] === 'config' && req.path.length === 1) return { status: 200, body: node.config }
+    if (req.method === 'GET' && req.path[0] === 'queue' && req.path.length === 1) return { status: 200, body: { status: node.queueStatus(), entries: node.store.queue().map(({ id, meta, status, receivedAt, ascHash }) => ({ queueId: id, meta, status, receivedAt, ascHash })) } }
+    if (req.method === 'GET' && req.path[0] === 'queue' && req.path[1] === 'committee') return { status: 200, body: node.committee() }
+    if (req.method === 'POST' && req.path[0] === 'queue' && req.path.length === 1) return { status: 201, body: { queueId: await node.submitSealed(req.body.envelope) } }
+    if (req.method === 'POST' && req.path[0] === 'queue' && req.path[1] === 'shares') return { status: 200, body: { shares: node.releaseShare(req.body.draw) } }
+    if (req.method === 'POST' && req.path[0] === 'quote' && req.path.length === 1) {
+      const meta = req.body.meta ?? queueMeta(req.body.asc, { escrowRef: req.body.escrowRef ?? 'quote' })
+      return { status: 200, body: node.quote(meta) }
+    }
+    if (req.method === 'GET' && req.path[0] === 'costs' && req.path[1]) {
+      const block = node.store.block(req.path[1])
+      return block ? { status: 200, body: { height: block.height, split: node.costSplit(block) } } : { status: 404, body: { error: 'no such block' } }
     }
     if (req.method === 'POST' && req.path[0] === 'harnesses' && req.path.length === 1) {
       node.registerHarness(req.body)

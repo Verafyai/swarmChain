@@ -16,6 +16,8 @@
  *                                and the escrow carries to the escalated jury
  *   core agrees                  core's `verifyRuling` re-runs the ruling from its round
  *   rulings append-only          a challenge appends affirm, overturn or supersede
+ *   batching                     an L1 contract seals alone; no contract seals in a
+ *                                block smaller than its minBatch
  *
  * @module swarmchain/node/verify
  */
@@ -24,6 +26,8 @@ import {
   verifyMessage, checkCommit, checkRevealRecord, conserves, checkPay, accountFor, verifyRuling,
   blockHeader, rulingId, resolveChallenge, appendReview, BELOW_BAR, CHALLENGE_KIND, GROUNDS,
 } from '#core'
+
+import { isBatched } from './batch.js'
 
 export { rulingId, GROUNDS }
 
@@ -145,6 +149,8 @@ export function verifyBlock(block, ctx) {
     if (inBlock.has(ruling.ascHash)) reject('already-ruled', `contract ${ruling.ascHash} appears twice`)
     inBlock.add(ruling.ascHash)
     const { asc, settlement } = checkRuling(ruling, block, ctx)
+    if (block.rulings.length > 1 && !isBatched(asc)) reject('batch', `${asc.id} is an L1 contract; L1 contracts do not batch, each seals alone`)
+    if ((asc.payment.minBatch ?? 1) > block.rulings.length) reject('batch-min', `${asc.id} sets minBatch ${asc.payment.minBatch}; this block holds ${block.rulings.length}`)
     out.rulings.push({ id: rulingId(ruling), ruling })
     out.settlements.push(settlement)
 
