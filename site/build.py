@@ -2,7 +2,7 @@
 
     python3 site/build.py        (needs: pip install markdown)
 
-index.html is hand-written; this renders only site/constitution.html.
+index.html is hand-written; this renders site/constitution.html and site/amendments.html.
 Commit the output: Vercel serves site/ as static files with no build step.
 """
 import html as H
@@ -86,11 +86,9 @@ tr:last-child td{border-bottom:0}
 TOC_JS = '''<script>(function(){var links=[].slice.call(document.querySelectorAll('.side a'));var hs=links.map(function(a){return document.getElementById(decodeURIComponent(a.hash.slice(1)))}).filter(Boolean);function on(){var y=window.scrollY+120,cur=null;hs.forEach(function(h){if(h.offsetTop<=y)cur=h.id});links.forEach(function(a){a.classList.toggle('on',decodeURIComponent(a.hash.slice(1))===cur)})}window.addEventListener('scroll',on,{passive:true});on()})();</script>'''
 
 
-def build():
-    text = (REPO / 'CONSTITUTION.md').read_text()
-    title = 'The Verafy Chain Constitution'
-    desc = 'Draft constitution for Block 0 of Verafy Chain: no foundation, no VC, no coin, no fundraising, no secret team, no community fund, no treasury. Governance judged by a panel of agents.'
-    m = markdown.Markdown(extensions=['tables', 'fenced_code', 'toc'], extension_configs={'toc': {'toc_depth': '2-2'}})
+def build(src, out, slug, title, desc):
+    text = (REPO / src).read_text().replace('](AMENDMENTS.md)', '](/amendments)').replace('](CONSTITUTION.md)', '](/constitution)')
+    m = markdown.Markdown(extensions=['tables', 'fenced_code', 'toc'], extension_configs={'toc': {'toc_depth': '2-3'}})
     body = m.convert(text).replace('<table>', '<div class="tbl"><table>').replace('</table>', '</table></div>')
     cur = ' aria-current="page"'
     nav = '\n'.join(f'    <a href="{h}"{cur if t == "Constitution" else ""}>{t}</a>' for h, t in TABS)
@@ -102,12 +100,12 @@ def build():
 <title>{title}</title>
 <meta name="description" content="{H.escape(desc)}">
 <link rel="icon" href="/logo.svg" type="image/svg+xml">
-<link rel="canonical" href="{HOST}/constitution">
+<link rel="canonical" href="{HOST}/{slug}">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="Verafy Chain">
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{H.escape(desc)}">
-<meta property="og:url" content="{HOST}/constitution">
+<meta property="og:url" content="{HOST}/{slug}">
 <meta property="og:image" content="{HOST}/banner.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="{HOST}/banner.png">
@@ -125,8 +123,8 @@ def build():
 </header>
 <div class="wrap layout"><aside class="side" aria-label="On this page"><span class="lbl">On this page</span>{m.toc}</aside><article><span class="draft">Draft 0. Not sealed.</span>{body}</article></div>
 <footer class="wrap foot">
-  <p>Draft constitution for Block 0 of Verafy Chain, a Verafy research concept. Nothing is sealed, nothing runs, and there is no token.</p>
-  <p>Source: <a href="https://github.com/Verafyai/verafyChain/blob/main/CONSTITUTION.md">CONSTITUTION.md</a>. Comment by opening an issue on <a href="https://github.com/Verafyai/verafyChain/issues">Verafyai/verafyChain</a>.</p>
+  <p>Draft text for Block 0 of Verafy Chain, a Verafy research concept. Nothing is sealed, nothing runs, and there is no token.</p>
+  <p>Source: <a href="https://github.com/Verafyai/verafyChain/blob/main/CONSTITUTION.md">CONSTITUTION.md</a> and <a href="https://github.com/Verafyai/verafyChain/blob/main/AMENDMENTS.md">AMENDMENTS.md</a>. Comment by opening an issue on <a href="https://github.com/Verafyai/verafyChain/issues">Verafyai/verafyChain</a>.</p>
 </footer>
 {TOC_JS}
 </body>
@@ -136,9 +134,12 @@ def build():
     for bad in ('swarm chain', 'swarmchain', 'swarm harness', 'swarmharness'):
         assert bad not in low, bad
     assert '\u2014' not in page and '\u2013' not in page, 'em or en dash'
-    (SITE / 'constitution.html').write_text(page)
-    print('built constitution.html')
+    (SITE / out).write_text(page)
+    print('built', out)
 
 
 if __name__ == '__main__':
-    build()
+    build('CONSTITUTION.md', 'constitution.html', 'constitution', 'The Verafy Chain Constitution',
+          'Draft constitution for Block 0 of Verafy Chain: no foundation, no VC, no coin, no fundraising, no secret team, no community fund, no treasury. Governance judged by a panel of agents.')
+    build('AMENDMENTS.md', 'amendments.html', 'amendments', 'Amending the Verafy Chain Constitution',
+          'How the Verafy Chain Constitution and its Embedded Ethics are extended: seven stages, two checks, entrenched clauses, panels of agents. Draft.')

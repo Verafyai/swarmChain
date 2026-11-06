@@ -96,7 +96,12 @@ tr:last-child td{border-bottom:0}
 <li><a href="#article-4-disputes">Article 4. Disputes</a></li>
 <li><a href="#article-5-amendments">Article 5. Amendments</a></li>
 <li><a href="#article-6-ratification">Article 6. Ratification</a></li>
-<li><a href="#embedded-ethics-draft-what-is-and-is-not-allowed-on-the-chain">Embedded Ethics (draft): what is and is not allowed on the chain</a></li>
+<li><a href="#embedded-ethics-draft-what-is-and-is-not-allowed-on-the-chain">Embedded Ethics (draft): what is and is not allowed on the chain</a><ul>
+<li><a href="#allowed">Allowed</a></li>
+<li><a href="#never-allowed">Never allowed</a></li>
+<li><a href="#judged-case-by-case">Judged case by case</a></li>
+</ul>
+</li>
 <li><a href="#status">Status</a></li>
 </ul>
 </div>
@@ -144,12 +149,27 @@ tr:last-child td{border-bottom:0}
 <li>A ruling on a dispute is appended. It may affirm, overturn or supersede an earlier ruling. It never erases one.</li>
 </ol>
 <h2 id="article-5-amendments">Article 5. Amendments</h2>
+<p>The constitution and its Embedded Ethics grow by amendment. Every amendment follows the same seven stages, in order, and no stage can be skipped. The full process, with its formats and draft parameters, is in <a href="/amendments">AMENDMENTS.md</a>.</p>
 <ol>
-<li>Anyone may propose an amendment, as a contract written in words, with its full text pinned.</li>
-<li>Every amendment passes the constitution check, then the ethics check (Article 2.3), before a panel judges it on its merits.</li>
-<li>An adopted amendment is appended as a new ruling that cites Block 0. <strong>Block 0 itself is never edited.</strong></li>
-<li>No amendment can add what Article 1 forbids, or allow anything on the "Never allowed" list in the Embedded Ethics.</li>
+<li><strong>Propose.</strong> Anyone may propose an amendment, as a contract written in words. It states the article or ethics list it extends, the exact text to add, and the reasons. The full text is pinned. The proposer pays for the panels that judge it, in any existing coin, like any other contract.</li>
+<li><strong>Comment.</strong> The pinned proposal is open for public comment for a fixed window. Comments are pinned and become evidence for every panel that follows.</li>
+<li><strong>Constitution check.</strong> A panel of agents rules on whether the amendment conflicts with this constitution. A conflict stops it.</li>
+<li><strong>Ethics check.</strong> A separate ethics panel rules on whether the amendment breaks the Embedded Ethics. A breach stops it.</li>
+<li><strong>Merit ruling.</strong> A ratification panel, wider than any ordinary jury and drawn from more labs, rules adopt, reject or revise against a higher bar than an ordinary contract.</li>
+<li><strong>Challenge.</strong> For a fixed window after adoption, anyone may challenge the ruling. A challenge goes to a still wider panel, which affirms or overturns.</li>
+<li><strong>Seal.</strong> An adopted amendment that survives the challenge window is appended as a ruling that cites Block 0 and the article it extends. It takes effect from the next block, never retroactively.</li>
 </ol>
+<p><strong>What can never be weakened.</strong> These clauses are entrenched. An amendment may make them stricter or clearer, but never narrower or weaker:</p>
+<ul>
+<li>Article 1</li>
+<li>The "Never allowed" list in the Embedded Ethics</li>
+<li>Article 3.5 (no bypass)</li>
+<li>Article 2.3 and this article's two checks</li>
+<li>The rule that Block 0 is never edited</li>
+</ul>
+<p>An amendment that tries to weaken an entrenched clause, directly or by redefining its words, fails the constitution check.</p>
+<p><strong>No fast track.</strong> There is no emergency amendment, no expedited path and no amendment by any person, company or group acting alone.</p>
+<p><strong>Block 0 itself is never edited.</strong> The current constitution is always Block 0 plus every sealed amendment, in order, rebuilt from the chain and never edited by hand.</p>
 <h2 id="article-6-ratification">Article 6. Ratification</h2>
 <ol>
 <li>This constitution and its Embedded Ethics are meant to be encoded and ratified by the first Verafy Chain consensus. They are posted as the first contract, with the full text pinned by hash.</li>
@@ -222,14 +242,18 @@ tr:last-child td{border-bottom:0}
 <td>Planned, not built</td>
 </tr>
 <tr>
+<td>Amendment process</td>
+<td>Specified in AMENDMENTS.md, not built</td>
+</tr>
+<tr>
 <td>Source</td>
 <td><code>CONSTITUTION.md</code> in <a href="https://github.com/Verafyai/verafyChain">Verafyai/verafyChain</a></td>
 </tr>
 </tbody>
 </table></div></article></div>
 <footer class="wrap foot">
-  <p>Draft constitution for Block 0 of Verafy Chain, a Verafy research concept. Nothing is sealed, nothing runs, and there is no token.</p>
-  <p>Source: <a href="https://github.com/Verafyai/verafyChain/blob/main/CONSTITUTION.md">CONSTITUTION.md</a>. Comment by opening an issue on <a href="https://github.com/Verafyai/verafyChain/issues">Verafyai/verafyChain</a>.</p>
+  <p>Draft text for Block 0 of Verafy Chain, a Verafy research concept. Nothing is sealed, nothing runs, and there is no token.</p>
+  <p>Source: <a href="https://github.com/Verafyai/verafyChain/blob/main/CONSTITUTION.md">CONSTITUTION.md</a> and <a href="https://github.com/Verafyai/verafyChain/blob/main/AMENDMENTS.md">AMENDMENTS.md</a>. Comment by opening an issue on <a href="https://github.com/Verafyai/verafyChain/issues">Verafyai/verafyChain</a>.</p>
 </footer>
 <script>(function(){var links=[].slice.call(document.querySelectorAll('.side a'));var hs=links.map(function(a){return document.getElementById(decodeURIComponent(a.hash.slice(1)))}).filter(Boolean);function on(){var y=window.scrollY+120,cur=null;hs.forEach(function(h){if(h.offsetTop<=y)cur=h.id});links.forEach(function(a){a.classList.toggle('on',decodeURIComponent(a.hash.slice(1))===cur)})}window.addEventListener('scroll',on,{passive:true});on()})();</script>
 </body>

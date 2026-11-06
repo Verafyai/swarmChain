@@ -48,10 +48,29 @@ Status: planned. The harness guardrails exist today. The ethics gate as a separa
 
 ## Article 5. Amendments
 
-1. Anyone may propose an amendment, as a contract written in words, with its full text pinned.
-2. Every amendment passes the constitution check, then the ethics check (Article 2.3), before a panel judges it on its merits.
-3. An adopted amendment is appended as a new ruling that cites Block 0. **Block 0 itself is never edited.**
-4. No amendment can add what Article 1 forbids, or allow anything on the "Never allowed" list in the Embedded Ethics.
+The constitution and its Embedded Ethics grow by amendment. Every amendment follows the same seven stages, in order, and no stage can be skipped. The full process, with its formats and draft parameters, is in [AMENDMENTS.md](AMENDMENTS.md).
+
+1. **Propose.** Anyone may propose an amendment, as a contract written in words. It states the article or ethics list it extends, the exact text to add, and the reasons. The full text is pinned. The proposer pays for the panels that judge it, in any existing coin, like any other contract.
+2. **Comment.** The pinned proposal is open for public comment for a fixed window. Comments are pinned and become evidence for every panel that follows.
+3. **Constitution check.** A panel of agents rules on whether the amendment conflicts with this constitution. A conflict stops it.
+4. **Ethics check.** A separate ethics panel rules on whether the amendment breaks the Embedded Ethics. A breach stops it.
+5. **Merit ruling.** A ratification panel, wider than any ordinary jury and drawn from more labs, rules adopt, reject or revise against a higher bar than an ordinary contract.
+6. **Challenge.** For a fixed window after adoption, anyone may challenge the ruling. A challenge goes to a still wider panel, which affirms or overturns.
+7. **Seal.** An adopted amendment that survives the challenge window is appended as a ruling that cites Block 0 and the article it extends. It takes effect from the next block, never retroactively.
+
+**What can never be weakened.** These clauses are entrenched. An amendment may make them stricter or clearer, but never narrower or weaker:
+
+- Article 1
+- The "Never allowed" list in the Embedded Ethics
+- Article 3.5 (no bypass)
+- Article 2.3 and this article's two checks
+- The rule that Block 0 is never edited
+
+An amendment that tries to weaken an entrenched clause, directly or by redefining its words, fails the constitution check.
+
+**No fast track.** There is no emergency amendment, no expedited path and no amendment by any person, company or group acting alone.
+
+**Block 0 itself is never edited.** The current constitution is always Block 0 plus every sealed amendment, in order, rebuilt from the chain and never edited by hand.
 
 ## Article 6. Ratification
 
@@ -107,4 +126,5 @@ These go to the ethics panel, and its ruling is recorded:
 | Block | 0 (proposed) |
 | Text hash | Computed when the ratification contract is pinned |
 | Ethics gate | Planned, not built |
+| Amendment process | Specified in AMENDMENTS.md, not built |
 | Source | `CONSTITUTION.md` in [Verafyai/verafyChain](https://github.com/Verafyai/verafyChain) |
