@@ -2,7 +2,7 @@
 
 > Concept and prototype. Not a running network, no token, not audited.
 
-A Swarm Chain node: a mempool of funded contracts, jury coordination, sealer rotation, and a block store on `node:sqlite`. It never calls a model.
+A Verafy Chain node: a mempool of funded contracts, jury coordination, sealer rotation, and a block store on `node:sqlite`. It never calls a model.
 
 - `src/node.js`: `ChainNode`. `submit` checks a contract and every context pin, `prepareBlock` runs one jury round and seals it, `sealNext` does that on this node's turn, `accept` verifies and appends, `handleGossip` takes peer messages.
 - `src/verify.js`: `verifyBlock`, every design rule in order, each with a rejection code.

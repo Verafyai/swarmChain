@@ -4,8 +4,9 @@
  *
  * A `call` trigger in a sealed ruling (for example `market.settle(NO)` on
  * Solana) may leave the chain only with signatures from at least the contract's
- * quorum of the jurors whose votes were counted. The message (`swarm.trigger/0`)
- * and the quorum check are core's: `triggerMessage`, `signTrigger` and
+ * quorum of the jurors whose votes were counted. The message (`swarm.trigger/0`
+ * at the pinned core; `verafy.trigger/1` once core moves, with both accepted by
+ * core's verifier) and the quorum check are core's: `triggerMessage`, `signTrigger` and
  * `verifyTrigger` from `@verafyharness/core`. What the bridge adds is the chain's
  * view: the ruling is sealed in the block the message names, its contract is
  * known, and no review has overturned or superseded it.

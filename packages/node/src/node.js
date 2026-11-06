@@ -1,5 +1,5 @@
 /**
- * A Swarm Chain node: a mempool of funded contracts, jury coordination, sealer
+ * A Verafy Chain node: a mempool of funded contracts, jury coordination, sealer
  * rotation and a block store. A node never calls a model; harnesses do.
  *
  * Every hash, signature, agreement and diff check is from `@verafyharness/core`.

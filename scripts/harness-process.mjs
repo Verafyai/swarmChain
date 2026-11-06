@@ -6,7 +6,8 @@
  *
  *   harness-process --id h-anthropic-1 --port 7201 --nodes http://127.0.0.1:7101,...
  *
- * The harness's lab, model and bond come from verafyHarness's swarm.config.json.
+ * The harness's lab, model and bond come from verafyHarness's verafy.config.json,
+ * or swarm.config.json in a verafyHarness from before the rename.
  * Answers come from the SCRIPTED provider (core's mockProvider over
  * verafyHarness's examples/mock-answers.json, keyed per request by contract id
  * and lab), because there is no model key here. With `--identity <file>` the
@@ -18,6 +19,7 @@
  *   POST /reveal    { ascHash } -> the signed reveal
  */
 import { createServer } from 'node:http'
+import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
@@ -26,10 +28,11 @@ import { Harness, mockProvider } from '#core'
 
 const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('verafyharness/package.json'))
 const { values } = parseArgs({ options: { id: { type: 'string' }, port: { type: 'string' }, nodes: { type: 'string', default: '' }, identity: { type: 'string' } } })
-const config = JSON.parse(await readFile(join(HARNESS_ROOT, 'swarm.config.json'), 'utf8'))
+const CONFIG_FILE = ['verafy.config.json', 'swarm.config.json'].find(f => existsSync(join(HARNESS_ROOT, f))) ?? 'verafy.config.json'
+const config = JSON.parse(await readFile(join(HARNESS_ROOT, CONFIG_FILE), 'utf8'))
 const script = JSON.parse(await readFile(join(HARNESS_ROOT, 'examples', 'mock-answers.json'), 'utf8'))
 const setup = config.pool.find(h => h.id === values.id)
-if (!setup) { console.error(`no harness "${values.id}" in verafyHarness swarm.config.json`); process.exit(2) }
+if (!setup) { console.error(`no harness "${values.id}" in verafyHarness ${CONFIG_FILE}`); process.exit(2) }
 
 const harness = new Harness({ ...setup, provider: mockProvider(script), ...(values.identity ? { identityFile: values.identity } : {}) })
 const url = `http://127.0.0.1:${values.port}`

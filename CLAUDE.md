@@ -1,6 +1,6 @@
-# Swarm Chain
+# Verafy Chain
 
-The chain half of Swarm Chain: node, gossip, storage, read API, explorer, Solana bridge. Concept and prototype: not a running network, no token, not audited. Say so in every README.
+The chain half of Verafy Chain: node, gossip, storage, read API, explorer, Solana bridge. Concept and prototype: not a running network, no token, not audited. Say so in every README.
 
 ## The boundary
 

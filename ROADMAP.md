@@ -1,6 +1,8 @@
 # Roadmap
 
-Swarm Chain follows the Verafy Harness milestones ([verafyHarness ROADMAP](https://github.com/Verafyai/verafyHarness/blob/main/ROADMAP.md)). This repo carries the chain side of milestones 4 and 5. Each milestone has a done condition that can be checked. Dates are not set.
+Verafy Chain follows the Verafy Harness milestones ([verafyHarness ROADMAP](https://github.com/Verafyai/verafyHarness/blob/main/ROADMAP.md)). This repo carries the chain side of milestones 4 and 5, and two governance milestones from the draft Constitution: the ethics gate (Article 3) and amendments (Article 5). Each milestone has a done condition that can be checked. Dates are not set.
+
+The Constitution (`CONSTITUTION.md`) is Draft 0. It is not sealed and has no Block 0 hash: it is sealed only by a real ratification ruling (Article 6), and its text hash is computed only when the ratification contract is pinned.
 
 ## Milestone 4: A network of harnesses (started)
 
@@ -37,6 +39,46 @@ Done when: ten independently operated harnesses, on at least five labs' models, 
 
 Done when: a devnet market is created, funded, resolved by a jury, and settled by a quorum-signed call.
 
+## Governance: the ethics gate (Constitution Article 3, planned)
+
+An ethics panel screens every contract and every governance proposal at intake, before it can enter a block, against the Embedded Ethics in the draft Constitution. Status: planned, not built. The harness guardrails exist today; the gate as a separate panel does not.
+
+- [ ] Intake screening: a contract or governance proposal enters the mempool only after an ethics panel rules on it, with three declared outcomes: `allow`, `refuse` or `escalate`
+- [ ] The panel is drawn like any jury: seeded from the parent block hash, spanning labs, commit and reveal
+- [ ] Refuse: the contract never reaches a jury, its escrow returns to the sender, and the ruling and its reasons are recorded on chain
+- [ ] Escalate: a close call goes to a wider ethics panel; if that panel cannot clear the bar either, the contract is refused (doubt resolves toward refusal)
+- [ ] Juror refusal: a harness may decline a seat on ethics grounds, never counted as a fault and never costing a bond
+- [ ] No bypass: no exempt flag, switch or route around the gate; `verify.js` rejects a block holding a contract with no `allow` ruling
+- [ ] Ethics rulings can be challenged like any ruling; a challenge appends, never erases
+- Panel size, lab span and bar: not set; any value chosen is proposed until fixed in the ratification contract
+
+Done when: on the devnet, a contract from the Allowed list is screened `allow` and sealed, a contract from the Never allowed list is screened `refuse` with its escrow returned and its reasons recorded, a close call escalates, and a block carrying an unscreened contract is rejected by every node.
+
+## Governance: amendments (Constitution Article 5, specified, not built)
+
+The seven-stage process in `AMENDMENTS.md` (Propose, Comment, Constitution check, Ethics check, Merit ruling, Challenge, Seal). Every parameter here is a **proposed** draft value, fixed only in the ratification contract for Block 0; none is measured.
+
+1. [ ] **`verafy.amendment/1` in verafyHarness core.** The contract kind and its validator: one target, declared exits, entrenched-clause list.
+2. [ ] **Stage rulings in the chain node.** Each stage is a ruling that cites the one before it. `verify.js` refuses a seal that is missing a stage, and refuses a panel that reuses a harness.
+3. [ ] **Consolidated text.** `site/build.py` rebuilds `/constitution` from Block 0 plus sealed amendments, read from the chain.
+4. [ ] **Devnet test.** A scripted amendment runs through all seven stages and seals. A second one, which tries to remove "No treasury", stops at the constitution check.
+
+Proposed parameters (all proposed, from `AMENDMENTS.md`):
+
+| Parameter | Proposed value |
+|---|---|
+| Comment window | 14 days (proposed) |
+| Constitution check panel | 7 harnesses, at least 4 labs, bar 2/3 (proposed) |
+| Ethics check panel | 7 harnesses, at least 4 labs, bar 2/3 (proposed) |
+| Merit panel | 15 harnesses, at least 5 labs (proposed) |
+| Merit bar, Extend and Clarify | 3/4 (proposed) |
+| Merit bar, Reclassify and Supersede | 4/5 (proposed) |
+| Challenge window | 14 days (proposed) |
+| Challenge panel | 21 harnesses, at least 6 labs (proposed) |
+| Escalations per stage | 1, then doubt resolves toward stopping (proposed) |
+
+Done when: step 4 passes on the devnet with the proposed parameters, both amendments stay in the record with their stage rulings, and the rebuilt `/constitution` shows the sealed one marked with its amendment id.
+
 ## Needed in verafyHarness
 
 The chain never reimplements core. These are the changes the chain asked of `@verafyharness/core`. verafyHarness PR #6 (commit 47a495e, pinned here) closed every one except the harness daemon, and the chain's workarounds for them are gone.
@@ -54,3 +96,6 @@ The chain never reimplements core. These are the changes the chain asked of `@ve
 11. [x] **A proof hash field on votes.** Closed: votes may carry a `proofHash`; core refuses a `proof` on a vote. The chain still refuses any `proof` field anywhere in a block.
 12. [ ] **The harness daemon** (verafyHarness milestone 4). Still open in verafyHarness. `scripts/harness-process.mjs` serves a core `Harness` over HTTP until it exists.
 13. [x] **Deterministic seal time.** Closed: `seal(parent, rulings, sealer, {time, reviews})`, with `blockHeader` (including `reviewsRoot`). The sealer passes its clock, always after the parent's time; every node checks the time moves forward and is no more than 60 s ahead of its own clock. Block hashes still differ run to run, because core draws a random salt for every commitment.
+14. [ ] **An ethics intake hook** (for the ethics gate, Constitution Article 3). A core function the node calls when a contract or governance proposal arrives, before it can enter the mempool: it seats an ethics panel and returns a ruling with exits `allow`, `refuse` or `escalate` and its reasons, in a record `verifyRuling` can check, plus a refund diff that returns escrow to the sender on `refuse`. No option exempts a contract from it. Until it exists, the chain screens nothing and says so.
+15. [ ] **`verafy.amendment/1`** (amendments, step 1). The contract kind and its validator, as listed under the amendments milestone.
+16. [ ] **Trigger kind `verafy.trigger/1`.** In progress in verafyHarness: core signs new triggers as `verafy.trigger/1` and verifies both kinds. The chain never checks the kind itself; its bridge test accepts either, so the pin can move to that commit in its own commit without other changes here.
