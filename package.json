@@ -15,6 +15,6 @@
     "node": "node packages/node/bin/swarmchain-node.mjs"
   },
   "dependencies": {
-    "verafyharness": "github:Verafyai/verafyHarness#d6b18d8"
+    "verafyharness": "github:Verafyai/verafyHarness#82d8345"
   }
 }
