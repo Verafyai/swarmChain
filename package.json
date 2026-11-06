@@ -17,6 +17,6 @@
     "quote": "node scripts/quote.mjs"
   },
   "dependencies": {
-    "verafyharness": "github:Verafyai/verafyHarness#82d8345"
+    "verafyharness": "github:Verafyai/verafyHarness#2320630"
   }
 }
