@@ -18,6 +18,12 @@
     "source": "Stablecoins counted at one US dollar when checking that the queue covers a block. Escrow in any other currency does not count toward the value rule until a price source is chosen",
     "date": "2026-11-06"
   },
+  "proving": {
+    "L2": {
+      "proofDeadlineSeconds": { "value": 600, "label": "illustrative", "source": "MASTER_SPEC Part D1: after the reveal, each counted juror attaches its proof hash and uploads the proof before this deadline, or its vote is dropped and a no-proof fault is recorded against its bond", "date": "2026-11-06" },
+      "verifier": { "value": "mock", "label": "illustrative", "source": "The Verifier the devnet nodes run (packages/prove in verafyHarness). mock binds commitment, input and answer but is not a proof; deepprove and flashprove adapters exist behind the same interface", "date": "2026-11-06" }
+    }
+  },
   "queue": {
     "threshold": { "value": "majority", "label": "illustrative", "source": "Shares needed to open a queued contract: more than half the node set (2 of 3 on the devnet)", "date": "2026-11-06" },
     "clockSkewSeconds": { "value": 60, "label": "illustrative", "source": "How far ahead of its own clock a node lets the time rule run when it checks a close, the same skew it allows a block's time", "date": "2026-11-06" }

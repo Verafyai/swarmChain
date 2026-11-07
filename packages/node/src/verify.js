@@ -15,6 +15,9 @@
  *   every counted vote paid      dissent included; below the bar, nobody is paid
  *                                and the escrow carries to the escalated jury
  *   core agrees                  core's `verifyRuling` re-runs the ruling from its round
+ *   L2 proofs                    every counted vote has a proof record whose
+ *                                checks, signed by validator nodes, pass; only
+ *                                proof hashes are on chain
  *   rulings append-only          a challenge appends affirm, overturn or supersede
  *   batching                     an L1 contract seals alone; no contract seals in a
  *                                block smaller than its minBatch
@@ -197,7 +200,7 @@ function checkRuling(ruling, block, ctx) {
   const rules = asc.payment.jury
   const jury = round.jury.map(c => {
     const card = ctx.harnesses.get(c?.id) ?? reject('jury-unknown', `juror ${c?.id} is not registered`)
-    if (card.publicKey !== c.publicKey || card.lab !== c.lab || card.model !== c.model || Number(card.bond) !== Number(c.bond)) reject('jury-unknown', `juror ${c.id} card does not match its registration`)
+    if (card.publicKey !== c.publicKey || card.lab !== c.lab || card.model !== c.model || Number(card.bond) !== Number(c.bond) || (card.modelCommitment ?? null) !== (c.modelCommitment ?? null)) reject('jury-unknown', `juror ${c.id} card does not match its registration`)
     return card
   })
   if (jury.length !== rules.size) reject('jury-size', `jury has ${jury.length} seats, the contract asks for ${rules.size}`)
@@ -252,7 +255,7 @@ function checkRuling(ruling, block, ctx) {
   if (unpaid.length) reject('pay', unpaid.join('; '))
 
   // Core re-verifies the whole ruling from its round, and must agree.
-  const verdict = verifyRuling(asc, ruling, { cards: ctx.harnesses, pool, seed })
+  const verdict = verifyRuling(asc, ruling, { cards: ctx.harnesses, pool, seed, verifiers: ctx.validators })
   if (!verdict.ok) reject('replay', `core does not verify the ruling: ${verdict.problems.join('; ')}`)
 
   const carried = ruling.passed ? 0 : asc.payment.escrow

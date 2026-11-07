@@ -9,7 +9,9 @@ import {
   createIdentity, importIdentity, signMessage, verifyMessage, validate, loadContext, ascHash as hashAsc,
   drawJuryFor, checkCommit, checkRevealRecord, ruleFromRecords, resolveChallenge, seal, canonical,
   createQueueKey, envelopeProblems, queueId, openShare, openContract, openWithKey,
+  needsProofs, proofCheck, bondFaults, sha256,
 } from '#core'
+import { mockVerifier, verifyBundle } from '#prove'
 import { BlockStore } from './store.js'
 import { ContextStore, fetchContext } from '../../storage/src/index.js'
 import { verifyBlock, expectedSealer, challengeProblem, sealTime, GENESIS, BlockRejected } from './verify.js'
@@ -31,8 +33,10 @@ export class ChainNode {
    * @param {object | string} [options.identity] - a kept Ed25519 key (identity, KeyObject or PKCS#8 PEM), so a restarted node keeps its id; a fresh key otherwise.
    * @param {object} [options.config] - the chain config (`config/chain.json`, loaded and frozen by default).
    * @param {() => number} [options.now] - this node's clock in ms, for the queue's time rule.
+   * @param {object} [options.verifier] - the Verifier (packages/prove) this node runs on L2 proofs; the mock by default.
+   * @param {number} [options.proofDeadlineMs] - how long after the reveal round a juror has to attach its proof (default from the chain config).
    */
-  constructor({ id, url = '', db = ':memory:', windowMs, jurors, fetchContent = fetchContext, log = () => {}, identity, config = loadChainConfig(), now = Date.now }) {
+  constructor({ id, url = '', db = ':memory:', windowMs, jurors, fetchContent = fetchContext, log = () => {}, identity, config = loadChainConfig(), now = Date.now, verifier = mockVerifier(), proofDeadlineMs }) {
     this.id = id
     this.url = url
     this.identity = identity ? importIdentity(identity) : createIdentity()
@@ -54,6 +58,8 @@ export class ChainNode {
     this.queueKeys = new Map([[id, this.queueKey.publicKey]])
     /** How this node asks its peers for decryption shares; set by the server or the test network. */
     this.peers = { requestShares: async () => [] }
+    this.verifier = verifier
+    this.proofDeadlineMs = proofDeadlineMs ?? config.proving.L2.proofDeadlineSeconds.value * 1000
   }
 
   /** @returns {{id: string, publicKey: string, url: string}} what peers need to verify this node's blocks. */
@@ -178,6 +184,8 @@ export class ChainNode {
         this.store.settleContract(s.ascHash, s.status, block.hash, s.carried)
         for (const c of s.context) this.storage.retain(c, Date.parse(block.time))
       }
+      // Every fault a round records is kept against the harness's bond, for slashing later.
+      for (const { ruling } of rulings) for (const f of bondFaults(ruling)) this.store.addFault({ ...f, height: block.height, block: block.hash })
     })
     this.log({ event: 'block', node: this.id, height: block.height, hash: block.hash, sealer: block.sealer })
     return block
@@ -281,9 +289,49 @@ export class ChainNode {
       }
     }
 
+    // L2: after the reveal, each juror attaches its proof hash before the proof deadline.
+    // Proving never blocks the commit; the commit and reveal rounds above are the same for every level.
+    const proving = needsProofs(asc) ? await this.#proofRound(asc, h, jury, reveals) : {}
+
     // Core rules from the recorded messages, exactly as every verifier will. A juror
-    // that did not commit or reveal is not counted and is listed in the round's faults.
-    return ruleFromRecords(asc, commits, reveals, { jury, sealer: { id: this.id, kind: 'node' }, seed })
+    // that did not commit or reveal, or (L2) whose proof is missing or fails, is not
+    // counted and is listed in the round's faults.
+    return ruleFromRecords(asc, commits, reveals, { jury, sealer: { id: this.id, kind: 'node' }, seed, ...proving })
+  }
+
+  /**
+   * The proof round (Part D1). Ask every juror that revealed for its proof
+   * record and bundle, in parallel, until the proof deadline. Keep each bundle in
+   * the availability layer (this node's storage, off chain), run this node's
+   * Verifier on it, and sign a check. Only the records (hashes) and the signed
+   * checks go into the ruling.
+   */
+  async #proofRound(asc, h, jury, reveals) {
+    let timer
+    const deadline = new Promise(resolve => { timer = setTimeout(() => resolve('deadline'), this.proofDeadlineMs) })
+    const asked = reveals.map(async r => {
+      const card = jury.find(j => j.id === r.harness)
+      try {
+        const got = await Promise.race([this.jurors.proof(card.entry, asc, h), deadline])
+        if (got === 'deadline') return this.log({ event: 'proof-missed', node: this.id, harness: r.harness, error: `no proof within ${this.proofDeadlineMs} ms` })
+        return { reveal: r, ...got }
+      } catch (err) {
+        this.log({ event: 'proof-missed', node: this.id, harness: r.harness, error: err.message })
+      }
+    })
+    const got = (await Promise.all(asked)).filter(Boolean)
+    clearTimeout(timer)
+    const proofRecords = []
+    const proofChecks = []
+    for (const { reveal, record, bundle } of got) {
+      if (!record || record.harness !== reveal.harness) continue
+      proofRecords.push(record)
+      if (typeof bundle === 'string' && sha256(bundle) === record.proofHash) this.storage.put(bundle, record.proofHash)
+      const result = await verifyBundle(this.verifier, asc, record, bundle, reveal.vote)
+      if (!result.ok) this.log({ event: 'proof-failed', node: this.id, harness: record.harness, error: result.reason })
+      proofChecks.push(proofCheck(this.id, this.identity.privateKey, record, result))
+    }
+    return { proofRecords, proofChecks }
   }
 
   // ---- The encrypted queue ------------------------------------------------

@@ -22,12 +22,15 @@ First goal: three local nodes and five harness processes seal blocks together ov
 - [x] The encrypted queue (Part C2, prototype): contracts sealed 2 of 3 to the devnet node set, only the escrow reference and payment metadata in the clear; shares released only after the jury is drawn from the parent block hash; plaintext and pins to the availability layer at reveal (`docs/batching.md`)
 - [ ] Real distributed key generation for a standing node-set queue key, and verifiable shares (planned, not built; today each author deals the shares for its own contract)
 - [ ] Confidential escrow amounts where the source chain supports them, such as Token-2022 confidential transfers on a Solana cluster that enables the ZK ElGamal proof program (planned, optional; amounts are public today)
+- [x] Proving (MASTER_SPEC Part D, mock prover): commit, reveal, then a signed proof record per counted vote before a proof deadline; the sealing node verifies each bundle with verafyHarness `packages/prove` and signs a check; a missing or failed proof drops the vote, re-measures agreement (escalating below the bar) and records a fault that every node keeps against the bond (`GET /faults`); every node refuses an L2 block whose proofs are unverified, checked by a non-validator, or on chain. The mock prover is not a proof of inference
+- [ ] A real prover and verifier on the devnet (DeepProve or FlashProve, through the adapters in `packages/prove`); needs Rex for the DeepProve license and any machine
+- [ ] Peers re-run the Verifier on the bundles themselves; today they check the sealer's signed checks and that every counted vote has one
 - [ ] Pay the proving operator from the cost split (Part D); today the split is computed and shown, and nothing pays provers
 - [ ] Harness daemon that takes jury seats on its own (verafyHarness; `scripts/harness-process.mjs` stands in)
 - [ ] Run the escalated jury: a below-bar ruling's carried escrow funds a larger jury in a later block (core now has `escalate`; the chain does not accept escalated contracts yet, and the devnet pool cannot seat a nine-seat jury outside the original jury)
 - [ ] Registry on chain: harness and validator registration by block, so draws use the registry as of the parent block
 - [ ] Liveness: a missed sealer turn passes to the next node after a timeout
-- [ ] Bonds and slashing on a test network; faults proven by audit or by a missing reveal
+- [ ] Bonds and slashing on a test network; faults proven by audit, a missing reveal or a missing proof (fault records are kept per node today; nothing is slashed)
 - [ ] Challenge juries that share no lab with the original jury, and challenge bonds (the chain requires that no original juror sits; core's default lab exclusion needs more labs than the test pool has, so tests pass `excludeLabs: []`)
 - [ ] libp2p gossip in place of HTTP
 
@@ -35,7 +38,11 @@ Done when: ten independently operated harnesses, on at least five labs' models, 
 
 ### Batching check (met, 2026-11-06)
 
-`npm run devnet`: after the five blocks above, two L2 contracts in the encrypted queue do not close a block (fixed cost 13.8% of the modeled block, over the 10% rule); a third closes block 6 by value with three rulings ($51.96 modeled block cost, $17.32 per contract); a contract with `maxWaitSeconds` 2 closes block 7 by time, alone ($5.10 modeled). All seven blocks identical on all three nodes. Figures are modeled; the votes carry no proofs yet (Part D).
+`npm run devnet`: after the five blocks above, two L2 contracts in the encrypted queue do not close a block (fixed cost 13.8% of the modeled block, over the 10% rule); a third closes block 6 by value with three rulings ($51.96 modeled block cost, $17.32 per contract); a contract with `maxWaitSeconds` 2 closes block 7 by time, alone ($5.10 modeled). All seven blocks identical on all three nodes. Figures are modeled. Since Part D, these L2 votes carry mock proof hashes too.
+
+### Proving check (met with the mock prover, 2026-11-06)
+
+`npm run devnet` (ports moved with `DEVNET_NODE_PORT=7500 DEVNET_HARNESS_PORT=7601`): blocks 6 and 7 carry 15 and 5 proof records, every check passed. Block 8: `h-qwen-1` sends no proof, its vote is dropped and a `no-proof` fault recorded (4 counted votes, agreement 1 against a bar of 0.8, final). Block 9: `fact-check` with a 0.9 bar (illustrative) loses `h-anthropic-1`'s proof and drops from 0.915 to 0.891, below the bar, so it escalates and carries its escrow. Block 10: `h-google-1` proves under another model commitment, the check fails, `bad-proof`. Every node holds the same three faults (bond 500 each); 33 proof hashes on chain, no proof field and no bundle text in any block, all 33 bundles held off chain. All ten blocks identical on all three nodes. The mock prover proves the flow, not the cryptography.
 
 ### First goal check (met)
 
@@ -108,3 +115,4 @@ The chain never reimplements core. These are the changes the chain asked of `@ve
 14. [ ] **An ethics intake hook** (for the ethics gate, Constitution Article 3). A core function the node calls when a contract or governance proposal arrives, before it can enter the mempool: it seats an ethics panel and returns a ruling with exits `allow`, `refuse` or `escalate` and its reasons, in a record `verifyRuling` can check, plus a refund diff that returns escrow to the sender on `refuse`. No option exempts a contract from it. Until it exists, the chain screens nothing and says so.
 15. [ ] **`verafy.amendment/1`** (amendments, step 1). The contract kind and its validator, as listed under the amendments milestone.
 16. [ ] **Trigger kind `verafy.trigger/1`.** In progress in verafyHarness: core signs new triggers as `verafy.trigger/1` and verifies both kinds. The chain never checks the kind itself; its bridge test accepts either, so the pin can move to that commit in its own commit without other changes here.
+17. [x] **Proof records, checks and finality for L2.** Closed by verafyHarness `proving` (pinned 2320630): `verafy.proof/1` records, `verafy.proof-check/1` checks, the proof gate in `ruleFromRecords`, `finality`, `bondFaults`, and `packages/prove` for the Verifier.

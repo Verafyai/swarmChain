@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { Harness, mockProvider, seal } from '#core'
+import { mockProver, mockCommitment, l2Provider, proveVotes } from '#prove'
 import { ChainNode, localJurorClient, sealTime } from '../packages/node/src/index.js'
 import { LocalBus } from '../packages/gossip/src/index.js'
 
@@ -35,6 +36,27 @@ export const FIVE_LABS = CONFIG.pool.slice(0, 5).map(h => h.id)
 export const SECOND_FIVE = CONFIG.pool.slice(0, 5).map(h => ({ ...h, id: `${h.id.replace(/-1$/, '')}-c` }))
 
 /**
+ * A harness that answers through the mock prover (scripted answers), carries
+ * the mock model commitment on its card, and proves its revealed L2 votes on
+ * request. L1 contracts never ask it for a proof.
+ * @param {object} setup - the harness setup from the pool.
+ * @param {object} script - scripted answers.
+ * @returns {{harness: object, prover: object, provider: object, prove: (asc: object) => Promise<{record: object, bundle: string}>}} the harness entry.
+ */
+export function provingHarness(setup, script = SCRIPT) {
+  const prover = mockProver({ model: setup.model, complete: mockProvider(script).complete })
+  const provider = l2Provider(prover)
+  const harness = new Harness({ ...setup, provider, modelCommitment: mockCommitment(setup.model) })
+  const entry = { harness, prover, provider }
+  entry.prove = async asc => {
+    const [r] = await proveVotes(harness, provider, entry.prover, [asc])
+    if (!r.record) throw new Error(r.error)
+    return { record: r.record, bundle: r.bundle }
+  }
+  return entry
+}
+
+/**
  * Build a network.
  * @param {{nodes?: number, harnesses?: string[], script?: object, extra?: object[]}} [options] -
  *   node count, harness ids, scripted answers, and setups for harnesses not in verafyHarness's pool.
@@ -44,7 +66,7 @@ export async function network({ nodes = 3, harnesses = FIVE_LABS, script = SCRIP
   const hs = new Map()
   for (const id of harnesses) {
     const setup = CONFIG.pool.find(h => h.id === id) ?? extra.find(h => h.id === id)
-    hs.set(id, { harness: new Harness({ ...setup, provider: mockProvider(script) }) })
+    hs.set(id, provingHarness(setup, script))
   }
   const bus = new LocalBus()
   const list = []
