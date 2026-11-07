@@ -1,0 +1,79 @@
+{
+  "ethics/market-goalkeeper-injury": {
+    "*": {
+      "answer": "refuse",
+      "confidence": 0.95,
+      "reasoning": "Scripted answer: a market on whether a named player is injured is a contract on a person's injury, Never allowed item 2 (Violence).",
+      "sources": [
+        "c0",
+        "c3"
+      ]
+    }
+  },
+  "ethics/market-goalkeeper-injury/wider": {
+    "*": {
+      "answer": "refuse",
+      "confidence": 0.95,
+      "reasoning": "Scripted answer: a contract on a person's injury, Never allowed item 2.",
+      "sources": [
+        "c0",
+        "c3"
+      ]
+    }
+  },
+  "A-1/constitution-check": {
+    "*": {
+      "answer": "passes",
+      "confidence": 0.9,
+      "reasoning": "Scripted answer: adding a Never allowed item is an Extend that makes an entrenched list stricter (passes).",
+      "sources": [
+        "c0",
+        "c1"
+      ]
+    }
+  },
+  "A-1/ethics-check": {
+    "*": {
+      "answer": "passes",
+      "confidence": 0.9,
+      "reasoning": "Scripted answer: adding a Never allowed item is an Extend that makes an entrenched list stricter (passes).",
+      "sources": [
+        "c0",
+        "c1"
+      ]
+    }
+  },
+  "A-1/merit": {
+    "*": {
+      "answer": "adopt",
+      "confidence": 0.9,
+      "reasoning": "Scripted answer: adding a Never allowed item is an Extend that makes an entrenched list stricter (adopt).",
+      "sources": [
+        "c0",
+        "c1"
+      ]
+    }
+  },
+  "A-2/constitution-check": {
+    "*": {
+      "answer": "conflicts",
+      "confidence": 0.95,
+      "reasoning": "Scripted answer: removing clause 7 (No treasury) weakens Article 1, an entrenched clause.",
+      "sources": [
+        "c0",
+        "c1"
+      ]
+    }
+  },
+  "A-2/constitution-check/wider": {
+    "*": {
+      "answer": "conflicts",
+      "confidence": 0.95,
+      "reasoning": "Scripted answer: removing clause 7 (No treasury) weakens Article 1, an entrenched clause.",
+      "sources": [
+        "c0",
+        "c1"
+      ]
+    }
+  }
+}

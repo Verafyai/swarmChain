@@ -7,15 +7,20 @@
  */
 import {
   createIdentity, importIdentity, signMessage, verifyMessage, validate, loadContext, ascHash as hashAsc,
-  drawJuryFor, checkCommit, checkRevealRecord, ruleFromRecords, resolveChallenge, seal, canonical,
+  drawJuryFor, drawJury, checkCommit, checkRevealRecord, ruleFromRecords, resolveChallenge, seal, canonical,
   createQueueKey, envelopeProblems, queueId, openShare, openContract, openWithKey,
-  needsProofs, proofCheck, bondFaults, sha256,
+  needsProofs, proofCheck, bondFaults, sha256, DECLINE_KIND, validateAmendment, 
 } from '#core'
 import { mockVerifier, verifyBundle } from '#prove'
 import { BlockStore } from './store.js'
 import { ContextStore, fetchContext } from '../../storage/src/index.js'
 import { verifyBlock, expectedSealer, challengeProblem, sealTime, GENESIS, BlockRejected } from './verify.js'
 import { loadChainConfig, batchParams, thresholdFor, isBatched, closeDecision, closeProblem, costSplit, quote } from './batch.js'
+import { ethicsParams, embeddedEthics, subjectOf, screeningContract, widerContract, panelOutcome, screeningEntry } from './ethics.js'
+import {
+  amendmentParams, governanceHistory, panelists, commenters, commentProblem, filingProblem, stageContract, widerStage,
+  stageResult, escrowUse, consolidate, nextStage, passes, recordId, STAGE_KIND,
+} from './governance.js'
 
 /** The record a sealer signs when it closes a block from the queue: members, and the juries drawn for them. */
 export const DRAW_KIND = 'verafy.draw/1'
@@ -60,6 +65,12 @@ export class ChainNode {
     this.peers = { requestShares: async () => [] }
     this.verifier = verifier
     this.proofDeadlineMs = proofDeadlineMs ?? config.proving.L2.proofDeadlineSeconds.value * 1000
+    // The ethics gate (Article 3). Its parameters have floors in code; there is no setting that skips it.
+    this.ethics = ethicsParams(config)
+    this.ethicsText = embeddedEthics()
+    // Amendments (Article 5): proposals, comments and challenge filings this node holds, by amendment id.
+    this.amendParams = amendmentParams(config)
+    this.amendments = new Map()
   }
 
   /** @returns {{id: string, publicKey: string, url: string}} what peers need to verify this node's blocks. */
@@ -169,6 +180,16 @@ export class ChainNode {
       ruling: id => this.store.ruling(id),
       reviews: id => this.store.reviews(id),
       seenCommitment: (h, harness) => this.commitments.get(`${h}:${harness}`),
+      now: this.now(),
+      ethics: this.ethics,
+      ethicsText: this.ethicsText,
+      amendParams: this.amendParams,
+      amendment: id => this.amendments.get(id)?.amendment ?? null,
+      amendmentByHash: h => [...this.amendments.values()].find(x => x.hash === h)?.amendment ?? null,
+      comment: (id, h) => this.amendments.get(id)?.comments.get(h) ?? null,
+      filing: (id, h) => this.amendments.get(id)?.filings.get(h) ?? null,
+      history: () => this.#history(),
+      constitution: () => this.constitution(),
     }
   }
 
@@ -178,15 +199,19 @@ export class ChainNode {
    * @returns {Promise<object>} the block.
    */
   async accept(block) {
-    const { rulings, reviews, settlements } = verifyBlock(block, this.#view())
-    this.store.append(block, rulings, reviews, () => {
+    const { rulings, reviews, settlements, panels, refused } = verifyBlock(block, this.#view())
+    this.store.append(block, [...rulings, ...panels], reviews, () => {
       for (const s of settlements) {
         this.store.settleContract(s.ascHash, s.status, block.hash, s.carried)
         for (const c of s.context) this.storage.retain(c, Date.parse(block.time))
       }
+      // Refused by the ethics gate: never reaches a jury; its escrow returns to the sender (the block's refund diff).
+      for (const h of refused) this.store.settleContract(h, 'refused', block.hash, 0)
       // Every fault a round records is kept against the harness's bond, for slashing later.
-      for (const { ruling } of rulings) for (const f of bondFaults(ruling)) this.store.addFault({ ...f, height: block.height, block: block.hash })
+      for (const { ruling } of [...rulings, ...panels]) for (const f of bondFaults(ruling)) this.store.addFault({ ...f, height: block.height, block: block.hash })
     })
+    for (const s of block.screenings ?? []) if (s.outcome === 'refuse') this.log({ event: 'refused', node: this.id, height: block.height, subject: s.id, why: s.why, neverAllowed: s.neverAllowed })
+    for (const g of block.governance ?? []) this.log({ event: 'stage', node: this.id, height: block.height, amendment: g.amendment, stage: g.stage, result: g.result })
     this.log({ event: 'block', node: this.id, height: block.height, hash: block.hash, sealer: block.sealer })
     return block
   }
@@ -236,9 +261,17 @@ export class ChainNode {
    * @returns {Promise<object | null>} the sealed block, or null when nothing can be ruled.
    */
   async prepareBlock() {
+    const parent = this.tip()
+    const seed = parent?.hash ?? GENESIS
+    const time = sealTime(parent, this.now())
+    // Governance work due in this block: amendment stages and proposal screenings.
+    const gov = await this.#governanceWork(seed, parent, time)
     const next = this.nextContract()
-    if (next) return this.#sealRounds([next])
-    return this.#prepareFromQueue()
+    if (next) return this.#sealRounds([next], gov, time)
+    const queued = await this.#prepareFromQueue(gov, time)
+    if (queued) return queued
+    if (gov.screenings.length || gov.records.some(r => r.panels?.length)) return seal(parent, [], this.signer, { time, screenings: gov.screenings, governance: gov.records })
+    return null
   }
 
   /**
@@ -246,12 +279,18 @@ export class ChainNode {
    * @param {{entry: object, asc: object, jury: object[]}[]} list - contracts and their drawn juries.
    * @returns {Promise<object>} the sealed block.
    */
-  async #sealRounds(list) {
+  async #sealRounds(list, gov = { screenings: [], records: [] }, time = sealTime(this.tip(), this.now())) {
     const parent = this.tip()
     const seed = parent?.hash ?? GENESIS
     const rulings = []
     const reviews = []
+    const screenings = [...gov.screenings]
     for (const { entry, asc, jury } of list) {
+      // The ethics gate runs first, at intake: the jury's commit round opens only after the panel allows.
+      const screening = await this.#screen(asc, seed)
+      if (!screening) { this.log({ event: 'gate-waiting', node: this.id, asc: asc.id, error: 'no screening panel can be seated yet' }); continue }
+      screenings.push(screening)
+      if (screening.outcome !== 'allow') { this.log({ event: 'gate-refused', node: this.id, asc: asc.id, why: screening.why }); continue }
       const ruling = await this.#round(asc, entry.ascHash, jury, seed)
       rulings.push(ruling)
       if (asc.review) {
@@ -259,15 +298,43 @@ export class ChainNode {
         if (review.result !== 'stands') reviews.push(review)
       }
     }
-    return seal(parent, rulings, this.signer, { time: sealTime(parent), reviews })
+    if (!rulings.length && !screenings.length && !gov.records.some(r => r.panels?.length)) return null
+    return seal(parent, rulings, this.signer, { time, reviews, screenings, governance: gov.records })
+  }
+
+  /**
+   * The ethics gate for one subject (Article 3): the first panel, then the wider
+   * panel when the first escalates. Returns null when no first panel can be
+   * seated yet (the subject waits); a wider panel that cannot be seated refuses.
+   * @param {object} x - a contract (with context bytes) or an amendment.
+   * @param {string} seed - the parent block hash.
+   * @returns {Promise<object | null>} the screening entry.
+   */
+  async #screen(x, seed) {
+    const subject = subjectOf(x)
+    const exclude = x.kind === 'verafy.amendment/1' ? (x.proposer?.harnesses ?? []) : []
+    const first = screeningContract(subject, this.ethics, this.ethicsText, { exclude })
+    let jury
+    try { jury = drawJuryFor(first, this.#pool(), seed) } catch { return null }
+    const r1 = await this.#round(first, hashAsc(first), jury, seed)
+    const o1 = panelOutcome(1, r1)
+    if (o1.outcome !== 'escalate') return screeningEntry(x, [r1], [o1])
+    const wider = widerContract(subject, first, r1, this.ethics, this.ethicsText)
+    let jury2
+    try { jury2 = drawJuryFor(wider, this.#pool(), seed) } catch (err) { return screeningEntry(x, [r1], [o1], err.message) }
+    const r2 = await this.#round(wider, hashAsc(wider), jury2, seed)
+    return screeningEntry(x, [r1, r2], [o1, panelOutcome(2, r2)])
   }
 
   async #round(asc, h, jury, seed) {
     // Commit round: every juror deliberates and publishes only a commitment.
     const settled = await Promise.allSettled(jury.map(j => this.jurors.commit(j.entry, asc)))
     const commits = []
+    const declines = []
     settled.forEach((s, i) => {
       const card = jury[i]
+      // A harness may decline its seat on ethics grounds (Article 3.4): never a fault.
+      if (s.status === 'fulfilled' && s.value?.kind === DECLINE_KIND) { declines.push(s.value); this.log({ event: 'declined', node: this.id, harness: card.id, asc: asc.id, reason: s.value.reason }); return }
       const problem = s.status === 'fulfilled' ? checkCommit(card, s.value, h) : String(s.reason?.message ?? s.reason)
       if (problem) this.log({ event: 'commit-failed', node: this.id, harness: card.id, error: problem })
       else commits.push(s.value)
@@ -296,7 +363,7 @@ export class ChainNode {
     // Core rules from the recorded messages, exactly as every verifier will. A juror
     // that did not commit or reveal, or (L2) whose proof is missing or fails, is not
     // counted and is listed in the round's faults.
-    return ruleFromRecords(asc, commits, reveals, { jury, sealer: { id: this.id, kind: 'node' }, seed, ...proving })
+    return ruleFromRecords(asc, commits, reveals, { jury, sealer: { id: this.id, kind: 'node' }, seed, declines, ...proving })
   }
 
   /**
@@ -383,6 +450,11 @@ export class ChainNode {
     return [...this.store.harnesses()].map(e => ({ ...e.card, entry: e }))
   }
 
+  /** The first screening panel a seed draws. It depends only on the gate's rules, never on the plaintext. */
+  #screeningDraw(seed) {
+    try { return drawJury(this.#pool(), this.ethics.panel, seed).map(h => h.id) } catch { return null }
+  }
+
   #drawFor(meta, seed) {
     return drawJuryFor({ payment: { jury: meta.jury, maxValuePerVote: meta.maxValuePerVote } }, this.#pool(), seed)
   }
@@ -411,6 +483,7 @@ export class ChainNode {
       let drawn
       try { drawn = this.#drawFor(q.meta, payload.seed).map(h => h.id) } catch (err) { return `no jury can be drawn for ${m.queueId}: ${err.message}` }
       if (canonical(drawn) !== canonical(m.jury)) return `the jury for ${m.queueId} is not the draw seeded by the parent hash`
+      if (canonical(this.#screeningDraw(payload.seed)) !== canonical(m.screening ?? null)) return `the screening panel for ${m.queueId} is not the draw seeded by the parent hash`
       members.push({ id: q.id, meta: q.meta, receivedAt: q.receivedAt })
     }
     return closeProblem(members, { now: this.now(), p: this.params })
@@ -450,20 +523,21 @@ export class ChainNode {
    * their keys, then run the rounds.
    * @returns {Promise<object | null>} the sealed block, or null when no rule holds.
    */
-  async #prepareFromQueue() {
+  async #prepareFromQueue(gov, time) {
     const parent = this.tip()
     const seed = parent?.hash ?? GENESIS
 
     // Contracts opened for a block that was never sealed: they are public now, so seal them.
     const stranded = this.store.queue('opened').map(q => q.ascHash && this.contract(q.ascHash)).filter(c => c && c.entry.status === 'pending')
-    if (stranded.length) return this.#sealRounds(stranded.map(c => ({ ...c, jury: drawJuryFor(c.asc, this.#pool(), seed) })))
+    if (stranded.length) return this.#sealRounds(stranded.map(c => ({ ...c, jury: drawJuryFor(c.asc, this.#pool(), seed) })), gov, time)
 
     const queue = this.queueView().filter(it => { try { this.#drawFor(it.meta, seed); return true } catch { return false } })
     const decision = closeDecision(queue, { now: this.now(), p: this.params })
     if (!decision.close) return null
     const payload = {
       kind: DRAW_KIND, height: (parent?.height ?? 0) + 1, seed, sealer: this.id, time: new Date(this.now()).toISOString(),
-      members: decision.members.map(qid => ({ queueId: qid, jury: this.#drawFor(this.store.sealed(qid).meta, seed).map(h => h.id) })),
+      // The screening panel is drawn with the jury, before any share is released: it is the first to read the plaintext.
+      members: decision.members.map(qid => ({ queueId: qid, jury: this.#drawFor(this.store.sealed(qid).meta, seed).map(h => h.id), screening: this.#screeningDraw(seed) })),
     }
     const draw = { ...payload, signature: signMessage(this.identity.privateKey, payload) }
 
@@ -488,7 +562,7 @@ export class ChainNode {
     return this.#sealRounds(members.map(q => {
       const c = this.contract(q.ascHash)
       return { ...c, jury: drawJuryFor(c.asc, this.#pool(), seed) }
-    }))
+    }), gov, time)
   }
 
   /**
@@ -501,6 +575,188 @@ export class ChainNode {
     const opened = new Map(this.store.queue('opened').map(q => [q.ascHash, q]))
     const items = block.rulings.map(r => opened.get(r.ascHash)).filter(q => q && isBatched(q.meta)).map(q => ({ id: q.ascHash, meta: q.meta }))
     return items.length ? costSplit(items, this.params) : null
+  }
+
+  // ---- Amendments (Article 5) ----------------------------------------------
+
+  /** Every amendment's stage records on this node's chain, with the screening entry of each proposal. */
+  #history() {
+    return governanceHistory(this.store.blocks())
+  }
+
+  /**
+   * The current Constitution: Block 0 (Draft 0) plus every sealed amendment on
+   * this node's chain, in order. Rebuilt every time, never edited by hand.
+   * @returns {string} the consolidated text.
+   */
+  constitution() {
+    const sealed = []
+    for (const [id, entries] of this.#history()) {
+      const s = entries.find(e => e.record.stage === 'seal')
+      if (s) sealed.push({ amendment: this.amendments.get(id)?.amendment, height: s.height })
+    }
+    sealed.sort((a, b) => a.height - b.height || Number(a.amendment.id.slice(2)) - Number(b.amendment.id.slice(2)))
+    return consolidate(undefined, sealed.filter(x => x.amendment))
+  }
+
+  /** @returns {object[]} every amendment this node holds, with its stage records on chain. */
+  amendmentStatus() {
+    const hist = this.#history()
+    return [...this.amendments.values()].map(({ amendment: a, hash, comments, filings }) => {
+      const entries = hist.get(a.id) ?? []
+      const last = entries.at(-1)
+      return {
+        id: a.id, amendmentHash: hash, amendmentKind: a.amendmentKind, target: a.target, comments: comments.size, challenges: filings.size,
+        state: !last ? 'awaiting screening' : last.record.stage === 'seal' ? 'sealed' : passes(last.record) ? `after ${last.record.stage}` : `stopped at ${last.record.stage} (${last.record.result})`,
+        stages: entries.map(e => ({ stage: e.record.stage, result: e.record.result, height: e.height, record: e.id })),
+      }
+    })
+  }
+
+  /**
+   * Post an amendment (stage 1, Propose). The format is core's
+   * `validateAmendment`; ids are assigned in order of posting. The ethics gate
+   * screens it in the next block this node seals.
+   * @param {object} a - a `verafy.amendment/1` contract.
+   * @param {{gossip?: boolean}} [options] - whether to gossip it.
+   * @returns {Promise<{id: string, amendmentHash: string}>} its id and hash.
+   */
+  async proposeAmendment(a, { gossip = true } = {}) {
+    const problems = validateAmendment(a)
+    if (problems.length) throw new Error(`amendment rejected: ${problems.join('; ')}`)
+    const h = sha256(a)
+    const held = this.amendments.get(a.id)
+    if (held) { if (held.hash === h) return { id: a.id, amendmentHash: h }; throw new Error(`amendment rejected: ${a.id} is already taken`) }
+    const expected = `A-${this.amendments.size + 1}`
+    if (a.id !== expected) throw new Error(`amendment rejected: ids are assigned in order of posting; the next is ${expected}`)
+    if (a.target.startsWith('amendment:') && !this.amendments.has(a.target.slice(10))) throw new Error(`amendment rejected: ${a.target.slice(10)} does not exist`)
+    this.amendments.set(a.id, { amendment: a, hash: h, comments: new Map(), filings: new Map() })
+    this.storage.put(JSON.stringify(a, null, 2))
+    this.log({ event: 'amendment', node: this.id, id: a.id, amendmentHash: h })
+    if (gossip) await this.gossip.broadcast('amendment', { amendment: a })
+    return { id: a.id, amendmentHash: h }
+  }
+
+  /**
+   * Comment on an amendment during its comment window (stage 2). The comment is
+   * pinned by hash and becomes evidence for every later panel. A comment that
+   * names a harness is signed by it, and that harness is kept off every panel
+   * for this amendment.
+   * @param {object} c - a `verafy.comment/1`.
+   * @param {{gossip?: boolean}} [options] - whether to gossip it.
+   * @returns {Promise<string>} the comment's hash.
+   */
+  async addComment(c, { gossip = true } = {}) {
+    const held = this.amendments.get(c?.amendment)
+    if (!held) throw new Error(`comment rejected: no amendment ${c?.amendment}`)
+    const problem = commentProblem(c, this.harnessCards())
+    if (problem) throw new Error(`comment rejected: ${problem}`)
+    const entries = this.#history().get(c.amendment) ?? []
+    if (entries.length !== 1 || entries[0].record.result !== 'allow') throw new Error(`comment rejected: the comment window for ${c.amendment} is not open`)
+    const h = sha256(c)
+    held.comments.set(h, c)
+    this.storage.put(c.text)
+    if (gossip) await this.gossip.broadcast('comment', { comment: c })
+    return h
+  }
+
+  /**
+   * Challenge an adopted amendment during the challenge window (stage 6), by
+   * pinning the grounds and paying for the challenge panel.
+   * @param {object} f - a `verafy.amendment-challenge/1`.
+   * @param {{gossip?: boolean}} [options] - whether to gossip it.
+   * @returns {Promise<string>} the filing's hash.
+   */
+  async fileChallenge(f, { gossip = true } = {}) {
+    const held = this.amendments.get(f?.amendment)
+    if (!held) throw new Error(`challenge rejected: no amendment ${f?.amendment}`)
+    const problem = filingProblem(f)
+    if (problem) throw new Error(`challenge rejected: ${problem}`)
+    const last = (this.#history().get(f.amendment) ?? []).at(-1)
+    if (last?.record.stage !== 'merit' || last.record.result !== 'adopt') throw new Error(`challenge rejected: the challenge window for ${f.amendment} is not open`)
+    const h = sha256(f)
+    held.filings.set(h, f)
+    if (gossip) await this.gossip.broadcast('filing', { filing: f })
+    return h
+  }
+
+  /**
+   * The governance work due in the block this node is about to seal: screen
+   * new proposals, close comment windows, run the next panel stage, close
+   * challenge windows, and seal. One panel stage per amendment per block.
+   * @returns {Promise<{screenings: object[], records: object[]}>} what to put in the block.
+   */
+  async #governanceWork(seed, parent, time) {
+    const out = { screenings: [], records: [] }
+    const hist = this.#history()
+    const now = Date.parse(time)
+    const height = (parent?.height ?? 0) + 1
+    const base = { kind: STAGE_KIND }
+    for (const [id, held] of [...this.amendments].sort((x, y) => Number(x[0].slice(2)) - Number(y[0].slice(2)))) {
+      const a = held.amendment
+      const entries = [...(hist.get(id) ?? [])]
+      const last = entries.at(-1)
+      if (last && (!passes(last.record) || last.record.stage === 'seal')) continue
+      const head = { ...base, amendment: id, amendmentHash: held.hash }
+      const push = (record, screening) => { const e = { record, id: recordId(record), height, time, ...(screening ? { screening } : {}) }; entries.push(e); out.records.push(record); return e }
+      const stage = nextStage(entries)
+      if (stage === 'propose') {
+        const screening = await this.#screen(a, seed)
+        if (!screening) continue
+        out.screenings.push(screening)
+        const allowed = screening.outcome === 'allow'
+        push({ ...head, stage, cites: 'block:0', result: allowed ? 'allow' : 'refused', screening: screening.subject, ...(allowed ? {} : { escrow: { used: 0, returned: a.payment.escrow } }) }, screening)
+      } else if (stage === 'comment') {
+        if (now < Date.parse(last.time) + this.amendParams.commentWindowMs) continue
+        const comments = [...held.comments.entries()].map(([hash, c]) => ({ hash, harness: c.harness ?? null })).sort((x, y) => x.hash.localeCompare(y.hash))
+        const comment = { ...head, stage, cites: last.id, result: 'closed', opened: last.time, closed: time, comments }
+        const trial = [...entries, { record: comment, id: recordId(comment), height, time }]
+        const check = await this.#panelStage(a, 'constitution-check', trial, seed, head)
+        if (!check) continue
+        push(comment)
+        push(check)
+      } else if (stage === 'constitution-check' || stage === 'ethics-check' || stage === 'merit') {
+        const record = await this.#panelStage(a, stage, entries, seed, head)
+        if (record) push(record)
+      } else if (stage === 'challenge') {
+        if (now < Date.parse(last.time) + this.amendParams.challengeWindowMs) continue
+        const filings = [...held.filings.keys()].sort()
+        let record
+        if (!filings.length) record = { ...head, stage, cites: last.id, result: 'unchallenged', opened: last.time, closed: time }
+        else record = await this.#panelStage(a, stage, entries, seed, head, filings)
+        if (!record) continue
+        const done = push(record)
+        if (passes(record)) {
+          const stages = entries.map(e => e.id)
+          const sealRecord = { ...head, stage: 'seal', cites: done.id, result: 'sealed', cited: ['block:0', a.target, ...stages], effective: height + 1 }
+          sealRecord.escrow = escrowUse(a, [...entries, { record: sealRecord }], this.amendParams)
+          push(sealRecord)
+        }
+      }
+    }
+    return out
+  }
+
+  /** Run one panel stage: the first panel, then the wider one if the first is below the bar. Null when no first panel can be seated yet. */
+  async #panelStage(a, stage, entries, seed, head, filings = []) {
+    const held = this.amendments.get(a.id)
+    const exclude = [...(a.proposer?.harnesses ?? []), ...commenters(entries), ...panelists(entries)]
+    const comments = (entries.find(e => e.record.stage === 'comment')?.record.comments ?? []).map(c => held.comments.get(c.hash))
+    const first = stageContract(a, stage, { params: this.amendParams, cites: entries.at(-1), comments, filings: filings.map(h => held.filings.get(h)), exclude, constitution: this.constitution() })
+    let jury
+    try { jury = drawJuryFor(first, this.#pool(), seed) } catch (err) { this.log({ event: 'stage-waiting', node: this.id, amendment: a.id, stage, error: err.message }); return null }
+    const panels = [await this.#round(first, hashAsc(first), jury, seed)]
+    let unseated
+    if (!panels[0].passed) {
+      const wider = widerStage(first, panels[0])
+      let jury2
+      try { jury2 = drawJuryFor(wider, this.#pool(), seed) } catch (err) { unseated = err.message }
+      if (jury2) panels.push(await this.#round(wider, hashAsc(wider), jury2, seed))
+    }
+    const { result, reasons } = stageResult(stage, a, panels, { unseated, earlier: id => this.amendments.get(id)?.amendment ?? null })
+    const record = { ...head, stage, cites: entries.at(-1).id, result, reasons, panels, ...(unseated ? { unseated } : {}), ...(stage === 'challenge' ? { filings } : {}) }
+    if (!passes(record)) record.escrow = escrowUse(a, [...entries, { record }], this.amendParams)
+    return record
   }
 
   /** The sealer object core's `seal` takes: this node's id and signing function. */
@@ -521,6 +777,12 @@ export class ChainNode {
     const cards = this.harnessCards()
     if (type === 'contract') {
       await this.submit(msg.asc, { sources: msg.sources ?? [], gossip: false })
+    } else if (type === 'amendment') {
+      await this.proposeAmendment(msg.amendment, { gossip: false })
+    } else if (type === 'comment') {
+      await this.addComment(msg.comment, { gossip: false })
+    } else if (type === 'filing') {
+      await this.fileChallenge(msg.filing, { gossip: false })
     } else if (type === 'sealed') {
       await this.submitSealed(msg.env, { gossip: false })
     } else if (type === 'queue-open') {

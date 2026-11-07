@@ -1,0 +1,63 @@
+{
+  "kind": "verafy.asc/1",
+  "id": "market-goalkeeper-injury",
+  "title": "Market: will the visiting goalkeeper be injured before the final?",
+  "instructions": "Resolve YES if the pinned club statement reports the visiting goalkeeper injured before the final, otherwise NO.",
+  "context": [
+    {
+      "kind": "text",
+      "content": "Scripted test fixture (not a real market). Club statement, Nov 1: the squad for the final is announced.",
+      "sha256": "d3a42d798ab30620501ca22059d18f4fcef245c56145478ec7a11a960e6342db"
+    }
+  ],
+  "question": {
+    "prompt": "Will the visiting goalkeeper be injured before the final?",
+    "answer": {
+      "type": "verdict",
+      "options": [
+        "YES",
+        "NO"
+      ]
+    }
+  },
+  "payment": {
+    "escrow": 2,
+    "currency": "USDC",
+    "bar": 0.8,
+    "jury": {
+      "size": 5,
+      "minLabs": 4,
+      "quorum": 4
+    },
+    "split": {
+      "jurors": 0.8,
+      "auditors": 0.1,
+      "storage": 0.05,
+      "sealer": 0.05
+    },
+    "chain": "solana"
+  },
+  "exits": [
+    {
+      "outcome": "YES",
+      "effect": {
+        "type": "record",
+        "label": "YES"
+      }
+    },
+    {
+      "outcome": "NO",
+      "effect": {
+        "type": "record",
+        "label": "NO"
+      }
+    },
+    {
+      "outcome": "*below-bar",
+      "effect": {
+        "type": "escalate",
+        "jurySize": 9
+      }
+    }
+  ]
+}

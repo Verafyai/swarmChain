@@ -27,5 +27,32 @@
   "queue": {
     "threshold": { "value": "majority", "label": "illustrative", "source": "Shares needed to open a queued contract: more than half the node set (2 of 3 on the devnet)", "date": "2026-11-06" },
     "clockSkewSeconds": { "value": 60, "label": "illustrative", "source": "How far ahead of its own clock a node lets the time rule run when it checks a close, the same skew it allows a block's time", "date": "2026-11-06" }
+  },
+  "ethics": {
+    "panel": {
+      "size": {"value": 3, "label": "illustrative", "source": "Seats on the screening panel. Article 3.1 sets no number; any value is proposed until fixed in the ratification contract. The code refuses fewer than 3", "date": "2026-11-06"},
+      "minLabs": {"value": 3, "label": "illustrative", "source": "Labs the screening panel spans (\"several labs\", Article 3.1). The code refuses fewer than 2", "date": "2026-11-06"},
+      "quorum": {"value": 2, "label": "illustrative", "source": "Reveals the screening panel needs to rule: more than half, so one offline panelist does not turn a clear case into a close call", "date": "2026-11-06"}
+    },
+    "wider": {
+      "size": {"value": 5, "label": "illustrative", "source": "Seats on the wider ethics panel a close call escalates to (Article 3.3), none of whom sat on the first panel. The code refuses a wider panel no larger than the first", "date": "2026-11-06"},
+      "minLabs": {"value": 4, "label": "illustrative", "source": "Labs the wider panel spans", "date": "2026-11-06"},
+      "quorum": {"value": 3, "label": "illustrative", "source": "Reveals the wider panel needs to rule: more than half", "date": "2026-11-06"}
+    },
+    "bar": {"value": 0.6667, "label": "illustrative", "source": "Two thirds: the bar each ethics panel must clear. Article 3 sets no bar; two thirds matches the draft constitution and ethics check panels in AMENDMENTS.md. The code refuses a bar of one half or less", "date": "2026-11-06"},
+    "fee": {"value": 0.05, "label": "illustrative", "source": "Escrow for each screening panel, in the subject's own coin, posted beside the contract escrow so a refused contract gets its whole escrow back (Article 3.2). Who funds it is a decision for Rex", "date": "2026-11-06"},
+    "split": {"value": {"jurors": 0.8, "auditors": 0.1, "storage": 0.05, "sealer": 0.05}, "label": "illustrative", "source": "How a screening panel's escrow is paid out, the same split as the example contracts", "date": "2026-11-06"}
+  },
+  "amendments": {
+    "status": "Proposed draft values from AMENDMENTS.md, Draft 0. Fixed only in the ratification contract for Block 0; after that, changed only by a Supersede amendment at the high bar. None is measured.",
+    "commentWindowDays": {"value": 14, "label": "proposed", "source": "AMENDMENTS.md, Comment: window 14 days (proposed)", "date": "2026-11-06"},
+    "constitutionCheck": {"value": {"size": 7, "minLabs": 4, "bar": 0.6667}, "label": "proposed", "source": "AMENDMENTS.md, Constitution check panel: 7 harnesses, at least 4 labs, bar 2/3 (proposed)", "date": "2026-11-06"},
+    "ethicsCheck": {"value": {"size": 7, "minLabs": 4, "bar": 0.6667}, "label": "proposed", "source": "AMENDMENTS.md, Ethics check panel: 7 harnesses, at least 4 labs, bar 2/3 (proposed)", "date": "2026-11-06"},
+    "merit": {"value": {"size": 15, "minLabs": 5, "bar": {"extend": 0.75, "clarify": 0.75, "reclassify": 0.8, "supersede": 0.8}}, "label": "proposed", "source": "AMENDMENTS.md, Merit panel: 15 harnesses, at least 5 labs; bar 3/4 for Extend and Clarify, 4/5 for Reclassify and Supersede (proposed)", "date": "2026-11-06"},
+    "challengeWindowDays": {"value": 14, "label": "proposed", "source": "AMENDMENTS.md, Challenge: window 14 days after an adopt ruling (proposed)", "date": "2026-11-06"},
+    "challenge": {"value": {"size": 21, "minLabs": 6, "bar": 0.6667}, "label": "illustrative", "source": "AMENDMENTS.md, Challenge panel: 21 harnesses, at least 6 labs (proposed). AMENDMENTS.md sets no challenge bar; 2/3 is illustrative and needs Rex", "date": "2026-11-06"},
+    "escalationsPerStage": {"value": 1, "label": "proposed", "source": "AMENDMENTS.md: 1 escalation per stage, then doubt resolves toward stopping (proposed). The wider panel is core's escalate default, 2n - 1 seats, excluding everyone who sat before", "date": "2026-11-06"},
+    "stageShare": {"value": {"constitutionCheck": 0.15, "ethicsCheck": 0.15, "merit": 0.35}, "label": "illustrative", "source": "Share of the amendment escrow each panel stage is paid. AMENDMENTS.md says the escrow pays every panel and the rest returns to the proposer, but sets no split; these shares are illustrative and need Rex. The challenge panel is paid by the challenger", "date": "2026-11-06"},
+    "split": {"value": {"jurors": 0.8, "auditors": 0.1, "storage": 0.05, "sealer": 0.05}, "label": "illustrative", "source": "How a stage panel's escrow is paid out", "date": "2026-11-06"}
   }
 }

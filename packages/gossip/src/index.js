@@ -15,7 +15,7 @@
  */
 import { sha256 } from '#core'
 
-export const MESSAGE_TYPES = ['contract', 'sealed', 'queue-open', 'commit', 'reveal', 'block']
+export const MESSAGE_TYPES = ['contract', 'sealed', 'queue-open', 'commit', 'reveal', 'block', 'amendment', 'comment', 'filing']
 
 export class Gossip {
   /**

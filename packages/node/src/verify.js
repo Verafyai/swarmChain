@@ -21,6 +21,17 @@
  *   rulings append-only          a challenge appends affirm, overturn or supersede
  *   batching                     an L1 contract seals alone; no contract seals in a
  *                                block smaller than its minBatch
+ *   the ethics gate              every contract ruled in a block was screened
+ *                                allow in that block; a refused contract is never
+ *                                ruled and its whole escrow returns; every panel
+ *                                ruling and outcome is recomputed (ethics.js)
+ *   amendments                   every stage record cites the one before, none
+ *                                skipped and nothing after a stop; no harness sits
+ *                                on two panels of one amendment; no proposer or
+ *                                commenter harness on any panel; nothing that
+ *                                weakens an entrenched clause gets past the
+ *                                constitution check; windows have run; every
+ *                                panel ruling and result is recomputed (governance.js)
  *
  * @module swarmchain/node/verify
  */
@@ -28,9 +39,15 @@ import {
   sha256, canonical, ascHash as hashAsc, validate, loadContext, drawJuryFor, eligibleJurors,
   verifyMessage, checkCommit, checkRevealRecord, conserves, checkPay, accountFor, verifyRuling,
   blockHeader, rulingId, resolveChallenge, appendReview, BELOW_BAR, CHALLENGE_KIND, GROUNDS,
+  entrenchment, drawJury,
 } from '#core'
 
 import { isBatched } from './batch.js'
+import { SCREENING_KIND, subjectOf, screeningContract, widerContract, panelOutcome, screeningEntry, same } from './ethics.js'
+import {
+  STAGE_KIND, PANEL_STAGES, passes, nextStage, recordId, panelists, commenters, commentProblem, stageContract,
+  widerStage, stageResult, escrowUse,
+} from './governance.js'
 
 export { rulingId, GROUNDS }
 
@@ -127,7 +144,8 @@ export function challengeProblem(asc, lookup) {
  * @returns {{rulings: {id: string, ruling: object}[], reviews: object[], settlements: object[]}} what to append.
  */
 export function verifyBlock(block, ctx) {
-  if (!Array.isArray(block?.rulings) || block.rulings.length === 0) reject('empty', 'a block exists only when a jury rules; this one has no rulings')
+  const panelsIn = list => (list ?? []).some(x => Array.isArray(x?.panels) && x.panels.length)
+  if (!Array.isArray(block?.rulings) || (block.rulings.length === 0 && !panelsIn(block.screenings) && !panelsIn(block.governance))) reject('empty', 'a block exists only when a jury rules; this one has no rulings')
   const proofAt = findKey(block, k => k === 'proof' || k === 'proofs')
   if (proofAt) reject('proof-on-chain', `proofs stay off chain; found "${proofAt}". Record a proof hash and keep the proof available instead`)
 
@@ -146,14 +164,15 @@ export function verifyBlock(block, ctx) {
   if (t > (ctx.now ?? Date.now()) + MAX_CLOCK_SKEW_MS) reject('time', 'block time is in the future')
   if (sha256(block.rulings.map(r => sha256(r)).join('')) !== block.rulingsRoot) reject('root', 'rulings root does not match the rulings')
 
-  const out = { rulings: [], reviews: [], settlements: [] }
+  const out = { rulings: [], reviews: [], settlements: [], panels: [], refused: [] }
   const inBlock = new Set()
+  const refusedHere = (block.screenings ?? []).filter(x => x?.subjectKind === 'contract' && x.outcome === 'refuse').length
   for (const ruling of block.rulings) {
     if (inBlock.has(ruling.ascHash)) reject('already-ruled', `contract ${ruling.ascHash} appears twice`)
     inBlock.add(ruling.ascHash)
     const { asc, settlement } = checkRuling(ruling, block, ctx)
     if (block.rulings.length > 1 && !isBatched(asc)) reject('batch', `${asc.id} is an L1 contract; L1 contracts do not batch, each seals alone`)
-    if ((asc.payment.minBatch ?? 1) > block.rulings.length) reject('batch-min', `${asc.id} sets minBatch ${asc.payment.minBatch}; this block holds ${block.rulings.length}`)
+    if ((asc.payment.minBatch ?? 1) > block.rulings.length + refusedHere) reject('batch-min', `${asc.id} sets minBatch ${asc.payment.minBatch}; this block holds ${block.rulings.length}`)
     out.rulings.push({ id: rulingId(ruling), ruling })
     out.settlements.push(settlement)
 
@@ -173,18 +192,184 @@ export function verifyBlock(block, ctx) {
   const reviews = block.reviews ?? []
   if ((reviews.length || block.reviewsRoot !== undefined) && sha256(reviews.map(r => sha256(r)).join('')) !== block.reviewsRoot) reject('review', 'reviews root does not match the reviews')
   if (canonical(reviews) !== canonical(out.reviews)) reject('review', `block reviews are not what core's resolveChallenge gives (expected ${out.reviews.map(r => r.result).join(', ') || 'none'})`)
+
+  checkGate(block, ctx, out)
+  checkGovernance(block, ctx, out)
   return out
 }
 
-function checkRuling(ruling, block, ctx) {
-  const found = ctx.contract(ruling.ascHash)
+/**
+ * The ethics gate (Article 3). Every contract ruled in this block must carry an
+ * allow screening in this block; every screening is recomputed from its panels.
+ * There is no exemption: no field, flag or kind skips this check.
+ */
+function checkGate(block, ctx, out) {
+  const screenings = block.screenings ?? []
+  if (!Array.isArray(screenings)) reject('ethics-gate', 'screenings must be a list')
+  if ((screenings.length || block.screeningsRoot !== undefined) && sha256(screenings.map(r => sha256(r)).join('')) !== block.screeningsRoot) reject('ethics-gate', 'screenings root does not match the screenings')
+  const bySubject = new Map()
+  for (const s of screenings) {
+    if (s?.kind !== SCREENING_KIND) reject('ethics-gate', `a screening entry is "${SCREENING_KIND}"`)
+    if (bySubject.has(s.subject)) reject('ethics-gate', `${s.id} is screened twice in one block`)
+    let x
+    let exclude = []
+    if (s.subjectKind === 'contract') {
+      const found = ctx.contract(s.subject) ?? reject('unknown-contract', `screened contract ${s.subject} is not in this node's mempool`)
+      if (found.entry.status !== 'pending') reject('already-ruled', `contract ${found.asc.id} was already ${found.entry.status}`)
+      x = found.asc
+    } else if (s.subjectKind === 'amendment') {
+      x = ctx.amendmentByHash?.(s.subject) ?? reject('amendment-unknown', `screened amendment ${s.subject} is not held by this node`)
+      exclude = x.proposer?.harnesses ?? []
+    } else reject('ethics-gate', `unknown screening subject kind "${s.subjectKind}"`)
+    bySubject.set(s.subject, verifyScreening(s, x, block, ctx, exclude))
+    for (const r of s.panels) out.panels.push({ id: rulingId(r), ruling: r })
+    if (s.subjectKind === 'contract' && s.outcome === 'refuse') out.refused.push(s.subject)
+  }
+  for (const r of block.rulings) {
+    const e = bySubject.get(r.ascHash)
+    if (!e || e.outcome !== 'allow') reject('ethics-gate', `${r.asc} entered a block without an allow ruling from the ethics gate (Article 3.1: every contract is screened before it can enter a block; there is no bypass)`)
+  }
+  const ruled = new Set(block.rulings.map(r => r.ascHash))
+  for (const [h, e] of bySubject) if (e.subjectKind === 'contract' && e.outcome === 'allow' && !ruled.has(h)) reject('ethics-gate', `${e.id} was allowed but not ruled in the block that screened it`)
+}
+
+/** Recompute one screening entry from its panels. */
+function verifyScreening(entry, x, block, ctx, exclude) {
+  const subject = subjectOf(x)
+  if (!Array.isArray(entry.panels) || entry.panels.length === 0) reject('ethics-gate', `the screening of ${subject.id} carries no panel ruling`)
+  const first = screeningContract(subject, ctx.ethics, ctx.ethicsText, { exclude })
+  checkRuling(entry.panels[0], block, ctx, first)
+  const readings = [panelOutcome(1, entry.panels[0])]
+  let unseated
+  if (readings[0].outcome === 'escalate') {
+    const wider = widerContract(subject, first, entry.panels[0], ctx.ethics, ctx.ethicsText)
+    if (entry.panels[1]) {
+      checkRuling(entry.panels[1], block, ctx, wider)
+      readings.push(panelOutcome(2, entry.panels[1]))
+    } else {
+      unseated = unseatable(wider, ctx, block.parent)
+      if (!unseated) reject('ethics-gate', `${subject.id}: a wider ethics panel can be seated, so the close call must go to it`)
+    }
+  }
+  if (entry.panels.length > readings.length) reject('ethics-gate', `${subject.id}: a wider panel sits only after the first panel escalates`)
+  const expected = screeningEntry(x, entry.panels, readings, unseated)
+  if (!same(expected, entry)) reject('ethics-gate', `the screening of ${subject.id} is not what its panels decided (expected ${expected.outcome}: ${expected.why})`)
+  return expected
+}
+
+/** Why no panel can be seated for a contract from the registered pool, or null when one can. */
+function unseatable(asc, ctx, seed) {
+  try { drawJuryFor(asc, [...ctx.harnesses.values()], seed); return null } catch (err) { return err.message }
+}
+
+/**
+ * Amendments (Article 5): every stage record in the block, in order.
+ */
+function checkGovernance(block, ctx, out) {
+  const records = block.governance ?? []
+  if (!Array.isArray(records)) reject('amendment-stage', 'governance must be a list')
+  if ((records.length || block.governanceRoot !== undefined) && sha256(records.map(r => sha256(r)).join('')) !== block.governanceRoot) reject('amendment-stage', 'governance root does not match the governance records')
+  if (!records.length) return
+  const hist = ctx.history()
+  const p = ctx.amendParams
+  const constitution = ctx.constitution()
+  const added = new Map()
+  for (const r of records) {
+    if (r?.kind !== STAGE_KIND) reject('amendment-stage', `a governance record is "${STAGE_KIND}"`)
+    const a = ctx.amendment(r.amendment) ?? reject('amendment-unknown', `amendment ${r.amendment} is not held by this node`)
+    if (sha256(a) !== r.amendmentHash) reject('amendment-unknown', `${a.id}: the record names another text`)
+    const entries = [...(hist.get(a.id) ?? []), ...(added.get(a.id) ?? [])]
+    const last = entries.at(-1)
+    const earlier = id => ctx.amendment(id)
+
+    // Entrenched clauses: an amendment that could weaken one stops at the constitution check, and nothing comes after.
+    const e = entrenchment(a, earlier)
+    if (e.weakens && !['propose', 'comment'].includes(r.stage) && !(r.stage === 'constitution-check' && r.result === 'conflicts')) reject('amendment-entrenched', `${a.id} would weaken an entrenched clause (${e.problems.join('; ')}); it can only stop at the constitution check`)
+
+    // Seven stages, in order, each citing the one before; nothing after a stop.
+    if (last && !passes(last.record)) reject('amendment-stage', `${a.id} stopped at ${last.record.stage} (${last.record.result}); nothing follows a stop`)
+    const expected = nextStage(entries)
+    if (r.stage !== expected) reject('amendment-stage', `${a.id}: the next stage is ${expected ?? 'none (sealed)'}, not ${r.stage}; no stage can be skipped`)
+    if (r.cites !== (last ? last.id : 'block:0')) reject('amendment-stage', `${a.id} ${r.stage} must cite ${last ? `the ${last.record.stage} record ${last.id}` : 'block:0'}`)
+
+    // Panels: no proposer or commenter harness, and no harness on two stages (or twice in one).
+    const jurors = (r.panels ?? []).flatMap(x => x?.round?.jury?.map(c => c.id) ?? [])
+    const barred = new Set([...(a.proposer?.harnesses ?? []), ...commenters(entries)])
+    for (const j of jurors) if (barred.has(j)) reject('amendment-excluded', `${j} is the proposer's or a commenter's harness, and may not sit on any panel for ${a.id}`)
+    const sat = new Set(panelists(entries))
+    const seen = new Set()
+    for (const j of jurors) {
+      if (sat.has(j) || seen.has(j)) reject('amendment-reuse', `${j} already sat on a panel for ${a.id}; a harness sits on at most one stage`)
+      seen.add(j)
+    }
+
+    const head = { kind: STAGE_KIND, amendment: a.id, amendmentHash: r.amendmentHash }
+    let want
+    let screening
+    if (r.stage === 'propose') {
+      screening = (block.screenings ?? []).find(s => s.subject === r.amendmentHash) ?? reject('amendment-stage', `${a.id} is proposed without an ethics screening in the same block`)
+      for (const j of screening.panels.flatMap(x => x.round.jury.map(c => c.id))) if (barred.has(j)) reject('amendment-excluded', `${j} is the proposer's harness, and may not sit on any panel for ${a.id}`)
+      const allowed = screening.outcome === 'allow'
+      want = { ...head, stage: 'propose', cites: 'block:0', result: allowed ? 'allow' : 'refused', screening: r.amendmentHash, ...(allowed ? {} : { escrow: { used: 0, returned: a.payment.escrow } }) }
+    } else if (r.stage === 'comment') {
+      if (Date.parse(block.time) < Date.parse(last.time) + p.commentWindowMs) reject('amendment-window', `${a.id}: the comment window is open until ${new Date(Date.parse(last.time) + p.commentWindowMs).toISOString()}`)
+      const cards = ctx.harnesses
+      for (const c of r.comments ?? []) {
+        const held = ctx.comment(a.id, c.hash) ?? reject('amendment-comment', `${a.id}: comment ${c.hash} is not held by this node`)
+        const problem = commentProblem(held, cards)
+        if (problem || held.amendment !== a.id || (held.harness ?? null) !== c.harness) reject('amendment-comment', `${a.id}: comment ${c.hash}: ${problem ?? 'does not match its record'}`)
+      }
+      want = { ...head, stage: 'comment', cites: last.id, result: 'closed', opened: last.time, closed: block.time, comments: r.comments ?? [] }
+    } else if (PANEL_STAGES[r.stage]) {
+      let filings = []
+      if (r.stage === 'challenge') {
+        if (Date.parse(block.time) < Date.parse(last.time) + p.challengeWindowMs) reject('amendment-window', `${a.id}: the challenge window is open until ${new Date(Date.parse(last.time) + p.challengeWindowMs).toISOString()}`)
+        if (r.result === 'unchallenged') {
+          want = { ...head, stage: 'challenge', cites: last.id, result: 'unchallenged', opened: last.time, closed: block.time }
+        } else filings = (r.filings ?? []).map(h => ctx.filing(a.id, h) ?? reject('amendment-comment', `${a.id}: challenge filing ${h} is not held by this node`))
+      }
+      if (!want) {
+        if (!Array.isArray(r.panels) || r.panels.length === 0) reject('amendment-stage', `${a.id} ${r.stage} carries no panel ruling`)
+        const comments = (entries.find(x => x.record.stage === 'comment')?.record.comments ?? []).map(c => ctx.comment(a.id, c.hash))
+        const exclude = [...(a.proposer?.harnesses ?? []), ...commenters(entries), ...panelists(entries)]
+        const first = stageContract(a, r.stage, { params: p, cites: last, comments, filings, exclude, constitution })
+        checkRuling(r.panels[0], block, ctx, first)
+        let unseated
+        if (!r.panels[0].passed) {
+          const wider = widerStage(first, r.panels[0])
+          if (r.panels[1]) checkRuling(r.panels[1], block, ctx, wider)
+          else {
+            unseated = unseatable(wider, ctx, block.parent)
+            if (!unseated) reject('amendment-result', `${a.id} ${r.stage}: a wider panel can be seated, so a ruling below the bar must go to it`)
+          }
+        }
+        if (r.panels.length > (r.panels[0].passed ? 1 : 2)) reject('amendment-result', `${a.id} ${r.stage}: too many panels`)
+        const { result, reasons } = stageResult(r.stage, a, r.panels, { unseated, earlier })
+        want = { ...head, stage: r.stage, cites: last.id, result, reasons, panels: r.panels, ...(unseated ? { unseated } : {}), ...(r.stage === 'challenge' ? { filings: r.filings } : {}) }
+      }
+      if (!passes(want)) want.escrow = escrowUse(a, [...entries, { record: want }], p)
+    } else if (r.stage === 'seal') {
+      want = { ...head, stage: 'seal', cites: last.id, result: 'sealed', cited: ['block:0', a.target, ...entries.map(x => x.id)], effective: block.height + 1 }
+      want.escrow = escrowUse(a, [...entries, { record: want }], p)
+    }
+    if (!same(want, r)) reject('amendment-result', `${a.id} ${r.stage} is not what its panels and the rules give (expected ${want.result})`)
+    for (const x of r.panels ?? []) out.panels.push({ id: rulingId(x), ruling: x })
+    const list = added.get(a.id) ?? []
+    list.push({ record: r, id: recordId(r), height: block.height, time: block.time, ...(screening ? { screening } : {}) })
+    added.set(a.id, list)
+  }
+}
+
+function checkRuling(ruling, block, ctx, given) {
+  // `given`: a panel's contract (ethics screening or amendment stage), rebuilt by the verifier, not read from the mempool.
+  const found = given ? { entry: { status: 'pending' }, asc: given } : ctx.contract(ruling?.ascHash)
   if (!found) reject('unknown-contract', `contract ${ruling.ascHash} is not in this node's mempool`)
   const { entry, asc } = found
   if (entry.status !== 'pending') reject('already-ruled', `contract ${asc.id} was already ${entry.status}`)
-  if (hashAsc(asc) !== ruling.ascHash) reject('unknown-contract', 'contract hash does not match')
+  if (hashAsc(asc) !== ruling?.ascHash) reject(given ? (asc.gate ? 'ethics-gate' : 'amendment-result') : 'unknown-contract', given ? `the ${asc.id} panel ruled on another contract than the one its rules give` : 'contract hash does not match')
   const problems = validate(asc)
   if (problems.length) reject('contract', problems.join('; '))
-  if (asc.review) {
+  if (asc.review && !given) {
     const problem = challengeProblem(asc, ctx.ruling)
     if (problem) reject('review', problem)
   }

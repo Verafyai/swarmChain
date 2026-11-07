@@ -109,7 +109,7 @@ tr:last-child td{border-bottom:0}
 </div>
 </aside><article><span class="draft">Draft 0. Not sealed.</span><h1 id="amending-the-verafy-chain-constitution">Amending the Verafy Chain Constitution</h1>
 <blockquote>
-<p><strong>Draft.</strong> This is the specification behind Article 5 of the <a href="/constitution">Constitution</a>. It is ratified with Block 0. Every number below is a <strong>proposed draft value</strong>, to be fixed in the ratification contract; none of it is measured. Status: specified, not built.</p>
+<p><strong>Draft.</strong> This is the specification behind Article 5 of the <a href="/constitution">Constitution</a>. It is ratified with Block 0. Every number below is a <strong>proposed draft value</strong>, to be fixed in the ratification contract; none of it is measured. Status: specified; a prototype runs on the in-process devnet with scripted answers (<a href="docs/governance.md">docs/governance.md</a>), and it governs nothing until ratification.</p>
 </blockquote>
 <h2 id="what-an-amendment-can-do">What an amendment can do</h2>
 <p>An amendment extends the Constitution or its Embedded Ethics. It never rewrites Block 0. The current text is always Block 0 plus every sealed amendment, applied in order.</p>
@@ -301,7 +301,7 @@ tr:last-child td{border-bottom:0}
 </tbody>
 </table></div>
 <h2 id="building-it">Building it</h2>
-<p>Planned work, in this order:
+<p>Built as a devnet prototype (November 6, 2026), in this order. The stage escrow shares and a challenge panel bar are not set here, so the prototype uses illustrative values (<code>config/chain.json</code>):
 1. <strong><code>verafy.amendment/1</code> in verafyHarness core.</strong> The contract kind and its validator: one target, declared exits, entrenched-clause list.
 2. <strong>Stage rulings in the verafyChain node.</strong> Each stage is a ruling that cites the one before it. <code>verify.js</code> refuses a seal that is missing a stage, and refuses a panel that reuses a harness.
 3. <strong>Consolidated text.</strong> <code>site/build.py</code> rebuilds <code>/constitution</code> from Block 0 plus sealed amendments, read from the chain.

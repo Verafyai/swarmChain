@@ -38,7 +38,7 @@ The ethics are built into the chain and checked automatically, not left to good 
 5. **No bypass.** Nobody, including whoever wrote the code, can switch the gate off, mark a contract exempt, or route around it.
 6. **The gate is judged too.** Every ethics ruling can be challenged like any other ruling. The challenge appends; it never erases.
 
-Status: planned. The harness guardrails exist today. The ethics gate as a separate panel is not built yet.
+Status: prototype. The ethics gate runs on the Verafy Chain devnet with scripted panel answers. Like everything in this draft, it governs nothing until ratification.
 
 ## Article 4. Disputes
 
@@ -125,6 +125,6 @@ These go to the ethics panel, and its ruling is recorded:
 | Sealed | No |
 | Block | 0 (proposed) |
 | Text hash | Computed when the ratification contract is pinned |
-| Ethics gate | Planned, not built |
-| Amendment process | Specified in AMENDMENTS.md, not built |
+| Ethics gate | Prototype on the devnet, scripted answers; governs nothing until ratification |
+| Amendment process | Specified in AMENDMENTS.md; prototype on the in-process devnet, scripted answers |
 | Source | `CONSTITUTION.md` in [Verafyai/verafyChain](https://github.com/Verafyai/verafyChain) |

@@ -60,6 +60,12 @@ export async function startNode({ id, port, host = '127.0.0.1', peers = [], db, 
       const block = node.store.block(req.path[1])
       return block ? { status: 200, body: { height: block.height, split: node.costSplit(block) } } : { status: 404, body: { error: 'no such block' } }
     }
+    // Amendments (draft Constitution Article 5). Draft 0: nothing here governs anything until ratification.
+    if (req.method === 'POST' && req.path[0] === 'amendments' && req.path.length === 1) return { status: 201, body: await node.proposeAmendment(req.body.amendment) }
+    if (req.method === 'POST' && req.path[0] === 'amendments' && req.path[2] === 'comments') return { status: 201, body: { comment: await node.addComment({ ...req.body.comment, amendment: req.path[1] }) } }
+    if (req.method === 'POST' && req.path[0] === 'amendments' && req.path[2] === 'challenges') return { status: 201, body: { filing: await node.fileChallenge({ ...req.body.filing, amendment: req.path[1] }) } }
+    if (req.method === 'GET' && req.path[0] === 'amendments' && req.path.length === 1) return { status: 200, body: node.amendmentStatus() }
+    if (req.method === 'GET' && req.path[0] === 'constitution' && req.path.length === 1) return { status: 200, body: { status: 'Draft 0. Not sealed: no ratification ruling exists.', text: node.constitution() } }
     if (req.method === 'POST' && req.path[0] === 'harnesses' && req.path.length === 1) {
       node.registerHarness(req.body)
       return { status: 201, body: { registered: req.body.card.id } }

@@ -2,7 +2,7 @@
 // scripted answers): when an L2 block closes, the encrypted queue, the cost split.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { sealContract, createQueueKey, openShare, openContract, ascHash, canonical, signMessage, queueMeta, contractTokens, sha256, drawJuryFor } from '#core'
+import { sealContract, createQueueKey, openShare, openContract, ascHash, canonical, signMessage, queueMeta, contractTokens, sha256, drawJuryFor, drawJury } from '#core'
 import { estimate } from '#economics'
 import { network, example, reseal } from './helpers.js'
 import { loadChainConfig, batchParams, costSplit } from '../packages/node/src/batch.js'
@@ -123,7 +123,9 @@ test('decryption happens only after the jury draw: no node releases a share befo
   const pool = n1.store.harnesses().map(e => e.card)
   const juryOf = x => drawJuryFor({ payment: { jury: x.env.meta.jury } }, pool, parent).map(h => h.id)
   const sign = (signer, payload) => ({ ...payload, signature: signMessage(signer.identity.privateKey, payload) })
-  const good = { kind: DRAW_KIND, height: 1, seed: parent, sealer: 'node-1', time: new Date().toISOString(), members: [a, b].map(x => ({ queueId: x.id, jury: juryOf(x) })) }
+  // Part G: the draw names each member's screening panel too, drawn from the same seed before any share is released.
+  const panel = drawJury(pool, n1.ethics.panel, parent).map(h => h.id)
+  const good = { kind: DRAW_KIND, height: 1, seed: parent, sealer: 'node-1', time: new Date().toISOString(), members: [a, b].map(x => ({ queueId: x.id, jury: juryOf(x), screening: panel })) }
   // Not yet due: no close rule holds on the peer's own view.
   assert.throws(() => n2.releaseShare(sign(n1, good)), /share withheld: no close rule holds/)
   advance(2 * HOUR)
@@ -132,6 +134,7 @@ test('decryption happens only after the jury draw: no node releases a share befo
   assert.throws(() => n2.releaseShare(sign(n3, good)), /signature does not verify/)
   assert.throws(() => n2.releaseShare(sign(n1, { ...good, members: [{ queueId: a.id, jury: juryOf(a).slice(1) }] })), /not the draw seeded by the parent hash/)
   assert.throws(() => n2.releaseShare(sign(n1, { ...good, height: 2 })), /draw is for height 2/)
+  assert.throws(() => n2.releaseShare(sign(n1, { ...good, members: good.members.map(m => ({ ...m, screening: panel.slice(1) })) })), /screening panel .* is not the draw seeded by the parent hash/)
 
   const events = []
   for (const n of net.nodes) { const log = n.log; n.log = e => { events.push(e); log(e) } }
@@ -169,7 +172,9 @@ test('a juror cannot read a queued contract before the draw', async () => {
   assert.equal(calls.length, 0)
   advance(2 * HOUR)
   await net.step()
-  assert.deepEqual(calls.map(c => c.asc), Array(5).fill(asc.id), 'the five drawn jurors read it only after the draw')
+  // The screening panel reads it first (Part G), then the five drawn jurors, both only after the draw.
+  assert.deepEqual(calls.filter(c => c.asc === asc.id).length, 5, 'the five drawn jurors read it only after the draw')
+  assert.deepEqual(calls.slice(0, 3).map(c => c.asc), Array(3).fill(`ethics/${asc.id}`), 'the screening panel reads it before the jury')
 })
 
 test('cost shares sum to the block cost, pro rata by proven requests, and match packages/economics', async () => {
