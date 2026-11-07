@@ -1,6 +1,6 @@
 # Amending the Verafy Chain Constitution
 
-> **Draft.** This is the specification behind Article 5 of the [Constitution](CONSTITUTION.md). It is ratified with Block 0. Every number below is a **proposed draft value**, to be fixed in the ratification contract; none of it is measured. Status: specified, not built.
+> **Draft.** This is the specification behind Article 5 of the [Constitution](CONSTITUTION.md). It is ratified with Block 0. Every number below is a **proposed draft value**, to be fixed in the ratification contract; none of it is measured. Status: specified; a prototype runs on the in-process devnet with scripted answers ([docs/governance.md](docs/governance.md)), and it governs nothing until ratification.
 
 ## What an amendment can do
 
@@ -135,7 +135,7 @@ All of these values are **proposed**. They become fixed in the ratification cont
 
 ## Building it
 
-Planned work, in this order:
+Built as a devnet prototype (November 6, 2026), in this order. The stage escrow shares and a challenge panel bar are not set here, so the prototype uses illustrative values (`config/chain.json`):
 1. **`verafy.amendment/1` in verafyHarness core.** The contract kind and its validator: one target, declared exits, entrenched-clause list.
 2. **Stage rulings in the verafyChain node.** Each stage is a ruling that cites the one before it. `verify.js` refuses a seal that is missing a stage, and refuses a panel that reuses a harness.
 3. **Consolidated text.** `site/build.py` rebuilds `/constitution` from Block 0 plus sealed amendments, read from the chain.

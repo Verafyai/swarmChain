@@ -6,10 +6,11 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import { Harness, mockProvider, seal } from '#core'
+import { Harness, seal } from '#core'
 import { mockProver, mockCommitment, l2Provider, proveVotes } from '#prove'
 import { ChainNode, localJurorClient, sealTime } from '../packages/node/src/index.js'
 import { LocalBus } from '../packages/gossip/src/index.js'
+import { scriptedComplete } from '../scripts/scripted-panels.mjs'
 
 const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('verafyharness/package.json'))
 // verafy.config.json after the verafyHarness rename; swarm.config.json before it.
@@ -43,8 +44,9 @@ export const SECOND_FIVE = CONFIG.pool.slice(0, 5).map(h => ({ ...h, id: `${h.id
  * @param {object} script - scripted answers.
  * @returns {{harness: object, prover: object, provider: object, prove: (asc: object) => Promise<{record: object, bundle: string}>}} the harness entry.
  */
-export function provingHarness(setup, script = SCRIPT) {
-  const prover = mockProver({ model: setup.model, complete: mockProvider(script).complete })
+export function provingHarness(setup, script = SCRIPT, extra = {}) {
+  // Scripted answers for contracts, plus ethics and amendment panels (scripts/scripted-panels.mjs).
+  const prover = mockProver({ model: setup.model, complete: scriptedComplete(script, extra) })
   const provider = l2Provider(prover)
   const harness = new Harness({ ...setup, provider, modelCommitment: mockCommitment(setup.model) })
   const entry = { harness, prover, provider }
@@ -62,11 +64,11 @@ export function provingHarness(setup, script = SCRIPT) {
  *   node count, harness ids, scripted answers, and setups for harnesses not in verafyHarness's pool.
  * @returns {Promise<object>} nodes, harnesses, and helpers.
  */
-export async function network({ nodes = 3, harnesses = FIVE_LABS, script = SCRIPT, extra = [], clock } = {}) {
+export async function network({ nodes = 3, harnesses = FIVE_LABS, script = SCRIPT, extra = [], clock, panels = {}, config } = {}) {
   const hs = new Map()
   for (const id of harnesses) {
     const setup = CONFIG.pool.find(h => h.id === id) ?? extra.find(h => h.id === id)
-    hs.set(id, provingHarness(setup, script))
+    hs.set(id, provingHarness(setup, script, panels))
   }
   const bus = new LocalBus()
   const list = []
@@ -75,7 +77,7 @@ export async function network({ nodes = 3, harnesses = FIVE_LABS, script = SCRIP
     throw new Error(`context ${h} is not available`)
   }
   for (let i = 1; i <= nodes; i++) {
-    const node = new ChainNode({ id: `node-${i}`, jurors: localJurorClient(hs), fetchContent, ...(clock ? { now: () => clock.now } : {}) })
+    const node = new ChainNode({ id: `node-${i}`, jurors: localJurorClient(hs), fetchContent, ...(clock ? { now: () => clock.now } : {}), ...(config ? { config } : {}) })
     node.gossip = bus.join(node)
     list.push(node)
   }

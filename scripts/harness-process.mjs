@@ -33,6 +33,7 @@ import { dirname, join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { Harness, mockProvider, ascHash } from '#core'
 import { mockProver, mockCommitment, l2Provider, proveVotes } from '#prove'
+import { scriptedComplete } from './scripted-panels.mjs'
 
 const HARNESS_ROOT = dirname(createRequire(import.meta.url).resolve('verafyharness/package.json'))
 const { values } = parseArgs({ options: { id: { type: 'string' }, port: { type: 'string' }, nodes: { type: 'string', default: '' }, identity: { type: 'string' } } })
@@ -42,7 +43,8 @@ const script = JSON.parse(await readFile(join(HARNESS_ROOT, 'examples', 'mock-an
 const setup = config.pool.find(h => h.id === values.id)
 if (!setup) { console.error(`no harness "${values.id}" in verafyHarness ${CONFIG_FILE}`); process.exit(2) }
 
-const complete = mockProvider(script).complete
+// Contracts, plus ethics screening and amendment panels (scripts/scripted-panels.mjs).
+const complete = scriptedComplete(script)
 const prover = mockProver({ model: setup.model, complete })
 const provider = l2Provider(prover)
 const harness = new Harness({ ...setup, provider, modelCommitment: mockCommitment(setup.model), ...(values.identity ? { identityFile: values.identity } : {}) })

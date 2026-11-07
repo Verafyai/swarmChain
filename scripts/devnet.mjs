@@ -106,9 +106,10 @@ async function main() {
 
   await queuePhase()
   await provingPhase()
+  await ethicsPhase()
 
   const chains = await Promise.all(NODES.map(n => get(`${n.url}/blocks?full=1`)))
-  const total = EXAMPLES.length + 5
+  const total = EXAMPLES.length + 6
   console.log('\nblocks, as each node holds them')
   let same = chains.every(ch => ch.length === total)
   for (let i = 0; i < total; i++) {
@@ -116,12 +117,13 @@ async function main() {
     const match = a.hash === b.hash && b.hash === c.hash
     same &&= match
     console.log(`\n  block ${a.height}  sealed by ${a.sealer}  parent ${a.parent.slice(0, 16)}${a.rulings.length > 1 ? `  ${a.rulings.length} rulings (batch)` : ''}`)
+    for (const s of a.screenings ?? []) console.log(`    ethics gate ${s.id}: ${s.outcome} (panel ${s.panels.map(p => p.round.jury.map(c => c.id).join(', ')).join('; wider ')})${s.outcome === 'refuse' ? `; ${s.why}; escrow ${s.refund[1].delta} returned to ${s.refund[1].account}` : ''}`)
     for (const r of a.rulings) {
       console.log(`    ${r.asc}: ${r.passed ? `${r.exit}, agreement ${Math.round(r.agreement * 100)}% against a bar of ${Math.round(r.bar * 100)}%` : `below the bar (${Math.round(r.agreement * 100)}% against ${Math.round(r.bar * 100)}%), ${r.exit}: escrow carried, no juror paid`}`)
     }
     const r = a.rulings[0]
-    console.log(`    jury ${r.round.jury.map(c => c.id).join(', ')}; ${r.votes.length} counted votes, ${r.dissent.length} dissent; sealer account ${r.round.sealer}`)
-    if (r.round.proofRecords) {
+    if (r) console.log(`    jury ${r.round.jury.map(c => c.id).join(', ')}; ${r.votes.length} counted votes, ${r.dissent.length} dissent; sealer account ${r.round.sealer}`)
+    if (r?.round.proofRecords) {
       const records = a.rulings.flatMap(x => x.round.proofRecords)
       const checks = a.rulings.flatMap(x => x.round.proofChecks)
       const faults = a.rulings.flatMap(x => x.round.faults)
@@ -237,6 +239,20 @@ async function provingPhase() {
   }
   console.log(`  on chain: ${records.length} proof hashes, ${keyed ? 'A PROOF FIELD' : 'no proof field'}, ${text.includes('verafy.proof-bundle/1') ? 'BUNDLE TEXT' : 'no bundle text'}; ${held} of ${records.length} bundles held off chain in the sealer's availability layer`)
   if (keyed || text.includes('verafy.proof-bundle/1') || held !== records.length) throw new Error('proof data on chain, or a bundle not held')
+}
+
+/** Part G1: a Never allowed contract is refused by the ethics gate; it never reaches a jury and its escrow returns. */
+async function ethicsPhase() {
+  console.log('\nethics gate (Article 3, scripted panel answers): every contract above was screened allow first; now a Never allowed one')
+  const asc = JSON.parse(await readFile(join(ROOT, 'test', 'fixtures', 'never-allowed-market.json'), 'utf8'))
+  const height = (await get(`${NODES[0].url}/health`)).height
+  await post(`${NODES[1].url}/contracts`, { asc })
+  await waitHeight(height + 1)
+  const block = await get(`${NODES[0].url}/blocks/${height + 1}`)
+  const s = block.screenings?.[0]
+  const ok = block.rulings.length === 0 && s?.outcome === 'refuse' && s.neverAllowed.join() === '2' && s.refund?.[1]?.delta === asc.payment.escrow
+  console.log(`  block ${block.height} refused ${asc.id}: Never allowed ${s?.neverAllowed.join(', ')}; ${block.rulings.length} jury rulings; ${s?.reasons.length} reasons recorded; whole escrow (${asc.payment.escrow} ${asc.payment.currency}) returned`)
+  if (!ok) throw new Error('the ethics gate did not refuse the Never allowed contract')
 }
 
 const stop = async () => {

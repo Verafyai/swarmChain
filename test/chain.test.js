@@ -214,10 +214,13 @@ test('read API: blocks, rulings, contracts, harness records', async () => {
   const get = (...path) => api({ method: 'GET', path, query: q })
   assert.equal(get('blocks').body.length, 5)
   assert.equal(get('blocks', '2').body.hash, get('blocks', get('blocks', '2').body.hash).body.hash)
-  assert.equal(get('rulings').body.length, 5)
+  // Every ruling: five jury rulings and, since Part G, the five ethics screening panels that allowed them.
+  assert.equal(get('rulings').body.length, 10)
+  assert.equal(get('rulings').body.filter(r => !r.asc.startsWith('ethics/')).length, 5)
   assert.equal(get('contracts').body.length, 5)
   const records = get('harnesses').body
   assert.equal(records.length, 5)
-  for (const h of records) { assert.equal(h.seated, 5); assert.equal(h.counted, 5); assert.ok(h.earned > 0) }
+  for (const h of records) { assert.ok(h.seated >= 5); assert.ok(h.counted >= 5); assert.ok(h.earned > 0) }
+  assert.equal(records.reduce((s, h) => s + h.seated, 0), 5 * 5 + 5 * 3, 'five seats on each jury, three on each screening panel')
   assert.equal(get('blocks', '99').status, 404)
 })

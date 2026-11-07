@@ -43,7 +43,7 @@ packages/storage/         availability layer: context by sha256 through the chal
 packages/api/             the read API
 packages/explorer/        a static page that reads the API
 packages/bridge-solana/   milestone 5 stub: checks core's trigger quorum against the chain
-config/chain.json         chain parameters: batching and queue defaults (illustrative, proposed; change only by amendment)
+config/chain.json         chain parameters: batching, queue, ethics gate and amendment defaults (illustrative or proposed; change only by amendment)
 docs/batching.md          batching and the encrypted queue: rules, defaults, what is and is not hidden
 scripts/devnet.mjs        three nodes, five harnesses, five contracts, five blocks, then two blocks from the encrypted queue
 scripts/quote.mjs         npm run quote: a contract's modeled share of a proven block, before funding
@@ -115,11 +115,15 @@ Every module here imports `#core`. To develop against a local verafyHarness chec
 
 7. **Proving (L2).** Commit and reveal run as for any contract, so proving never blocks the commit. Then each juror that revealed sends a signed proof record (`verafy.proof/1`: the proof hash, its vote commitment and the model commitment on its card) and its proof bundle before the proof deadline (`config/chain.json`, 600 s, illustrative). The sealing node keeps the bundle in its availability layer, runs its Verifier (verafyHarness `packages/prove`; the mock on the devnet, which is not a proof of inference) and signs a check. Core's `ruleFromRecords` counts a vote only with a proof that verifies; a missing or failed proof drops the vote, agreement is measured again against the bar (below it, the ruling escalates), and the round records a `no-proof` or `bad-proof` fault, which every node keeps against the harness's bond (`GET /faults`). Only the records and checks are on chain, never the proof.
 
+8. **The ethics gate (draft Constitution Article 3).** Before a contract's jury round opens, an ethics panel of harnesses from several labs, drawn from the parent hash like any jury, rules `allow`, `refuse` or `escalate` against the Embedded Ethics, quoted from `CONSTITUTION.md` as written. A refused contract never reaches a jury, its whole escrow returns to the sender, and the ruling and its reasons are recorded in the block. A refuse vote that cites a "Never allowed" item keeps the first panel from allowing; a close call goes to a wider panel, and doubt resolves toward refusal. A harness may decline a seat on ethics grounds without fault. There is no flag, config or key that skips it. Prototype, scripted answers; see [docs/governance.md](docs/governance.md).
+
+9. **Amendments (draft Constitution Article 5).** An amendment (`verafy.amendment/1`, verafyHarness core) runs seven stages, each a record in a block that cites the one before: propose (the ethics gate), comment, constitution check, ethics check, merit, challenge, seal. The current text is Block 0 plus sealed amendments (`GET /constitution`). Prototype on the in-process devnet with the draft panel sizes and scripted answers; the Constitution stays Draft 0 and has no Block 0 hash.
+
 ## What every node checks on every block
 
 | Rule | Check | Rejection code |
 |---|---|---|
-| A block exists only when a jury rules | at least one ruling | `empty` |
+| A block exists only when a jury rules | at least one ruling: a jury's, an ethics panel's or an amendment panel's | `empty` |
 | Proofs stay off chain | no `proof` or `proofs` field anywhere | `proof-on-chain` |
 | Linked, hashed, signed by the right sealer | height, parent, `sha256(blockHeader(block))`, rotation, Ed25519 | `link`, `hash`, `sealer` |
 | Time moves forward | after the parent's time, and no more than 60 s ahead of the verifier's clock | `time` |
@@ -136,6 +140,8 @@ Every module here imports `#core`. To develop against a local verafyHarness chec
 | Core agrees | core `verifyRuling(asc, ruling, {cards, pool, seed, verifiers})` re-runs the ruling from its round and finds no problem | `replay` |
 | L2 rulings are final | every counted vote has a proof record whose checks, signed by validator nodes, pass; a contract below L2 carries no proof records | `replay` |
 | Batching | an L1 contract seals alone; no contract seals in a block with fewer rulings than its `minBatch` | `batch`, `batch-min` |
+| The ethics gate | every ruled contract has an `allow` screening in the same block; every screening is recomputed from its panels' rulings; a refusal carries the full refund and no jury ruling | `ethics-gate` |
+| Amendments | stages in order, each citing the one before, nothing after a stop; no harness on two panels of one amendment; no proposer or commenter harness on a panel; nothing weakening an entrenched clause past the constitution check; windows run; every result recomputed | `amendment-stage`, `amendment-reuse`, `amendment-excluded`, `amendment-entrenched`, `amendment-window`, `amendment-result` |
 | Rulings are never erased | a challenge names a sealed ruling that cleared the bar and keeps its jurors off the challenge jury; the block's reviews are exactly core's `resolveChallenge`, appendable by `appendReview`, under the `reviewsRoot` | `review` |
 
 Blocks, rulings and reviews are append-only in SQLite: triggers abort any `UPDATE` or `DELETE`. A challenge is a new contract in core's `challengeContract` format (`review.kind` is `swarm.challenge/0`): it names a sealed ruling and its grounds (`new-evidence`, `false-evidence`, `error`, `changed-rules`), and pins the prior ruling and the new evidence as context. Its ruling appends a `swarm.review/0` record, `affirm`, `overturn` or `supersede`, to the original's review history; below the bar, the original stands and nothing is appended.
@@ -162,6 +168,8 @@ Each node serves it, read only, with CORS open for the explorer.
 | `GET /config` | the chain parameters, with labels and sources |
 
 Write routes for the queue: `POST /queue` (`{ envelope }`, a sealed contract), `POST /quote` (`{ asc }` or `{ meta }`, a modeled quote before funding) and `POST /queue/shares` (`{ draw }`, a node's shares, released only for a draw it checks).
+
+Amendment routes: `POST /amendments` (`{ amendment }`), `POST /amendments/<id>/comments` (`{ comment }`), `POST /amendments/<id>/challenges` (`{ filing }`), `GET /amendments` and `GET /constitution` (Block 0 plus sealed amendments; Draft 0).
 
 A `proofHash`, when one appears, is a hash only. It means something alongside availability, bonds and challenges, never by itself.
 
